@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { INTERVIEW_MONTHS } from "../interview-months";
 
-const SLUGS = new Set(INTERVIEW_MONTHS.map((m) => m.slug));
+const SLUGS: Set<string> = new Set(INTERVIEW_MONTHS.map((m) => m.slug));
 
 export function generateStaticParams() {
   return INTERVIEW_MONTHS.map(({ slug }) => ({ month: slug }));
