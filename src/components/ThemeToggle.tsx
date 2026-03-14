@@ -1,24 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useTheme } from "@/contexts/ThemeContext";
 
 type Theme = "light" | "dark" | "system";
 
 export default function ThemeToggle() {
-  const [mounted, setMounted] = useState(false);
   const { theme, setTheme } = useTheme();
 
-  useEffect(() => setMounted(true), []);
-
-  if (!mounted) {
-    return (
-      <span className="h-9 w-20 rounded-md bg-zinc-200 dark:bg-zinc-700" />
-    );
-  }
-
   return (
-    <div className="flex rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 p-0.5">
+    <div
+      className="flex rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 p-0.5"
+      suppressHydrationWarning
+    >
       {(["light", "dark", "system"] as const).map((t: Theme) => (
         <button
           key={t}
