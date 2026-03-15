@@ -1,14 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import FlowTernLogo from "@/components/FlowTernLogo";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function HomePage() {
-  const { isLoggedIn, login } = useAuth();
-  const router = useRouter();
+  const { isLoggedIn, ready, login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
@@ -35,12 +33,19 @@ export default function HomePage() {
         return;
       }
       login(remember);
-      router.refresh();
     } catch {
       setError("Something went wrong. Try again.");
     } finally {
       setLoading(false);
     }
+  }
+
+  if (!ready) {
+    return (
+      <div className="min-h-screen bg-zinc-50 font-sans dark:bg-zinc-950 flex items-center justify-center">
+        <p className="text-zinc-500 dark:text-zinc-400">Loading…</p>
+      </div>
+    );
   }
 
   if (isLoggedIn) {
@@ -173,6 +178,10 @@ export default function HomePage() {
                   >
                     {loading ? "Signing in…" : "Sign in"}
                   </button>
+                  <p className="text-center text-xs text-zinc-500 dark:text-zinc-400">
+                    No account?{" "}
+                    <Link href="/register" className="font-medium text-primary hover:underline">Create one</Link>
+                  </p>
                 </form>
               </div>
             </div>

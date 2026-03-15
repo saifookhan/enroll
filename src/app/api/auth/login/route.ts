@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { compare } from "bcryptjs";
+import { ensureUsersTable, getUserByEmail, isDbConfigured } from "@/lib/db";
 
 const LOGIN_EMAIL = process.env.LOGIN_EMAIL ?? "";
 const LOGIN_PASSWORD = process.env.LOGIN_PASSWORD ?? "";
@@ -16,9 +18,36 @@ export async function POST(request: Request) {
       );
     }
 
+    // Use database if configured
+    if (isDbConfigured()) {
+      let user;
+      try {
+        await ensureUsersTable();
+        user = await getUserByEmail(email);
+      } catch (err) {
+        console.error("Login DB error:", err);
+        return NextResponse.json(
+          { ok: false, error: "Database error. Check Supabase: key must start with sb_secret_ and table flowtern_users must exist." },
+          { status: 503 }
+        );
+      }
+      if (user && (await compare(password, user.password_hash))) {
+        return NextResponse.json({ ok: true });
+      }
+      return NextResponse.json(
+        { ok: false, error: "Invalid email or password." },
+        { status: 401 }
+      );
+    }
+
+    // Fallback: env-based single user
     if (!LOGIN_EMAIL || !LOGIN_PASSWORD) {
       return NextResponse.json(
-        { ok: false, error: "Login is not configured. Set LOGIN_EMAIL and LOGIN_PASSWORD in environment variables." },
+        {
+          ok: false,
+          error:
+            "Login is not configured. Set Supabase env vars (and add a user) or LOGIN_EMAIL and LOGIN_PASSWORD in environment variables.",
+        },
         { status: 503 }
       );
     }

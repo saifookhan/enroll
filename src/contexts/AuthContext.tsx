@@ -12,6 +12,7 @@ const STORAGE_KEY = "enroll-auth";
 
 type AuthContextType = {
   isLoggedIn: boolean;
+  ready: boolean;
   login: (remember: boolean) => void;
   logout: () => void;
 };
@@ -20,17 +21,18 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const stored = typeof window !== "undefined" && localStorage.getItem(STORAGE_KEY);
-    setIsLoggedIn(stored === "true");
+    setIsLoggedIn(localStorage.getItem(STORAGE_KEY) === "true");
+    setReady(true);
   }, []);
 
   const login = useCallback((remember: boolean) => {
-    setIsLoggedIn(true);
     if (remember && typeof window !== "undefined") {
       localStorage.setItem(STORAGE_KEY, "true");
     }
+    setIsLoggedIn(true);
   }, []);
 
   const logout = useCallback(() => {
@@ -41,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn, login, logout }}>
+    <AuthContext.Provider value={{ isLoggedIn: ready ? isLoggedIn : false, ready, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
