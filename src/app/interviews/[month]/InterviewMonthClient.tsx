@@ -1,8 +1,101 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const STORAGE_PREFIX = "enroll-interviews-";
+
+const INTERVIEW_STATUSES = [
+  { value: "confirmed", label: "Confirmed", color: "green" as const },
+  { value: "awaiting-reply", label: "Awaiting", color: "yellow" as const },
+  { value: "annulled", label: "Annulled", color: "red" as const },
+];
+
+const STATUS_COLORS: Record<string, "red" | "yellow" | "green"> = {
+  annulled: "red",
+  "awaiting-reply": "yellow",
+  confirmed: "green",
+};
+
+function StatusDot({ status, size = "md" }: { status: string; size?: "sm" | "md" }) {
+  const color = STATUS_COLORS[status] ?? "yellow";
+  const sizeClass = size === "sm" ? "h-2.5 w-2.5" : "h-3.5 w-3.5";
+  return (
+    <span
+      className={`inline-block shrink-0 rounded-full ${sizeClass} ${
+        color === "red"
+          ? "bg-red-500"
+          : color === "yellow"
+            ? "bg-amber-400"
+            : "bg-emerald-500"
+      }`}
+      title={INTERVIEW_STATUSES.find((s) => s.value === status)?.label ?? status}
+      aria-hidden
+    />
+  );
+}
+
+function StatusDropdown({
+  value,
+  onChange,
+  size = "md",
+  className = "",
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  size?: "sm" | "md";
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const current = INTERVIEW_STATUSES.find((s) => s.value === value) ?? INTERVIEW_STATUSES[1];
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
+  }, [open]);
+
+  return (
+    <div ref={ref} className={`relative inline-block ${className}`}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="inline-flex items-center gap-2 rounded border border-zinc-200 bg-white px-2.5 py-1.5 text-left text-sm text-zinc-900 shadow-sm hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-700"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <StatusDot status={current.value} size={size} />
+        <span>{current.label}</span>
+        <span className="ml-0.5 text-zinc-400">▼</span>
+      </button>
+      {open && (
+        <ul
+          className="absolute left-0 top-full z-10 mt-1 min-w-[10rem] rounded-md border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-600 dark:bg-zinc-800"
+          role="listbox"
+        >
+          {INTERVIEW_STATUSES.map((s) => (
+            <li key={s.value} role="option" aria-selected={value === s.value}>
+              <button
+                type="button"
+                onClick={() => {
+                  onChange(s.value);
+                  setOpen(false);
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-900 hover:bg-zinc-100 dark:text-zinc-50 dark:hover:bg-zinc-700"
+              >
+                <StatusDot status={s.value} size={size} />
+                <span>{s.label}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 type Interview = {
   id: string;
@@ -43,7 +136,7 @@ export default function InterviewMonthClient({
   const [showForm, setShowForm] = useState(false);
   const [applicant, setApplicant] = useState("");
   const [dateTime, setDateTime] = useState("");
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState(INTERVIEW_STATUSES[1].value); // default: Awaiting reply
 
   useEffect(() => {
     setInterviews(loadInterviews(month));
@@ -71,7 +164,7 @@ export default function InterviewMonthClient({
     persist(next);
     setApplicant("");
     setDateTime("");
-    setStatus("");
+    setStatus(INTERVIEW_STATUSES[1].value);
     setShowForm(false);
   }, [interviews, applicant, dateTime, status, persist]);
 
@@ -82,12 +175,22 @@ export default function InterviewMonthClient({
     [interviews, persist]
   );
 
+  const updateStatus = useCallback(
+    (id: string, newStatus: string) => {
+      const next = interviews.map((i) =>
+        i.id === id ? { ...i, status: newStatus } : i
+      );
+      persist(next);
+    },
+    [interviews, persist]
+  );
+
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
-            Interviews — {label}
+            {label}
           </h2>
           <p className="mt-2 text-zinc-600 dark:text-zinc-400">
             Schedule and manage interviews for {label}.
@@ -129,14 +232,9 @@ export default function InterviewMonthClient({
           </div>
           <div>
             <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">Status</label>
-            <input
-              type="text"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && addInterview()}
-              placeholder="e.g. Scheduled"
-              className="mt-1 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 min-w-[100px]"
-            />
+            <div className="mt-1">
+              <StatusDropdown value={status} onChange={setStatus} size="md" />
+            </div>
           </div>
           <button
             type="button"
@@ -176,7 +274,13 @@ export default function InterviewMonthClient({
                 <tr key={i.id}>
                   <td className="px-6 py-3 text-sm text-zinc-900 dark:text-zinc-50">{i.applicant || "—"}</td>
                   <td className="px-6 py-3 text-sm text-zinc-700 dark:text-zinc-300">{i.dateTime || "—"}</td>
-                  <td className="px-6 py-3 text-sm text-zinc-700 dark:text-zinc-300">{i.status || "—"}</td>
+                  <td className="px-6 py-3 text-sm text-zinc-700 dark:text-zinc-300">
+                    <StatusDropdown
+                      value={INTERVIEW_STATUSES.some((s) => s.value === i.status) ? i.status : INTERVIEW_STATUSES[1].value}
+                      onChange={(v) => updateStatus(i.id, v)}
+                      size="sm"
+                    />
+                  </td>
                   <td className="px-6 py-3">
                     <button
                       type="button"

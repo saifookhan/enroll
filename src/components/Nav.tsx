@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import NavLinks from "./NavLinks";
 import NavRight from "./NavRight";
 
 function NavRightFallback() {
@@ -32,26 +33,7 @@ export default function Nav() {
           >
             Dashboard
           </Link>
-          <div className="flex gap-6">
-            <Link
-              href="/enrollments-2027"
-              className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
-            >
-              Enrollments
-            </Link>
-            <Link
-              href="/interviews"
-              className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
-            >
-              Interviews
-            </Link>
-            <Link
-              href="/internships"
-              className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
-            >
-              Internships
-            </Link>
-          </div>
+          <NavLinks />
         </div>
         <Suspense fallback={<NavRightFallback />}>
           <NavRight />
