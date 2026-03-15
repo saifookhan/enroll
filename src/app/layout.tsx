@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "FlowTern",
-  description: "FlowTern — manage enrollments, interviews, and internships.",
+  description: "Enrollments, interviews, and internships — all in one place.",
 };
 
 export default function RootLayout({

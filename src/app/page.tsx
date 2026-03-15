@@ -56,7 +56,7 @@ export default function HomePage() {
             Dashboard
           </h1>
           <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-            FlowTern — enrollments, interviews by month, and internships by class.
+            Your hub for enrollments, interviews, and internships.
           </p>
           <div className="mt-12 grid gap-6 sm:grid-cols-3">
             <Link
@@ -108,19 +108,19 @@ export default function HomePage() {
               <FlowTernLogo size={320} markOnly className="justify-center" />
             </h1>
             <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400 max-w-md mx-auto">
-              Manage classes, interviews by month, and internships in one place.
+              All in one place.
             </p>
           </header>
-          <div className="grid gap-8 lg:grid-cols-2 lg:gap-14 lg:items-center flex-shrink-0">
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium w-fit" style={{ backgroundColor: 'rgba(30, 30, 78, 0.15)', color: '#1e1e4e' }}>
+          <div className="flex flex-col items-center gap-8 flex-shrink-0 max-w-md mx-auto">
+            <div className="flex flex-col items-center gap-3 text-center">
+              <div className="flex flex-wrap justify-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium" style={{ backgroundColor: 'rgba(30, 30, 78, 0.15)', color: '#1e1e4e' }}>
                   Enrollments by year
                 </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium w-fit" style={{ backgroundColor: 'rgba(163, 0, 49, 0.15)', color: '#a30031' }}>
+                <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium" style={{ backgroundColor: 'rgba(163, 0, 49, 0.15)', color: '#a30031' }}>
                   Interviews by month
                 </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium w-fit" style={{ backgroundColor: 'rgba(181, 23, 97, 0.15)', color: '#b51761' }}>
+                <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium" style={{ backgroundColor: 'rgba(181, 23, 97, 0.15)', color: '#b51761' }}>
                   Internships by class
                 </span>
               </div>
@@ -128,20 +128,20 @@ export default function HomePage() {
                 Sign in to get started.
               </p>
             </div>
-            <div className="flex justify-center lg:justify-end">
-              <div className="w-full max-w-[280px] rounded-xl border border-zinc-200/60 bg-white p-4 shadow-lg shadow-zinc-200/50 ring-1 ring-zinc-200/50 transition-shadow hover:shadow-xl dark:border-zinc-800/60 dark:bg-zinc-900/95 dark:shadow-zinc-950/50 dark:ring-zinc-800/50">
-                <h2 className="text-base font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+            <div className="w-full flex justify-center">
+              <div className="w-full max-w-[220px] rounded-lg border border-zinc-200/60 bg-white p-3 shadow-md dark:border-zinc-800/60 dark:bg-zinc-900/95">
+                <h2 className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
                   Sign in
                 </h2>
-                <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-                  Use your email and password.
+                <p className="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+                  Email and password.
                 </p>
-                <form onSubmit={handleSubmit} className="mt-3 space-y-3">
+                <form onSubmit={handleSubmit} className="mt-2.5 space-y-2.5">
                   {error && (
-                    <p className="text-sm text-red-600 dark:text-red-400 rounded-lg bg-red-50 dark:bg-red-950/30 px-3 py-2">{error}</p>
+                    <p className="text-xs text-red-600 dark:text-red-400 rounded bg-red-50 dark:bg-red-950/30 px-2 py-1.5">{error}</p>
                   )}
                   <div>
-                    <label htmlFor="home-email" className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Email</label>
+                    <label htmlFor="home-email" className="block text-[11px] font-medium text-zinc-600 dark:text-zinc-400 mb-0.5">Email</label>
                     <input
                       id="home-email"
                       type="email"
@@ -149,11 +149,11 @@ export default function HomePage() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="you@example.com"
-                      className="w-full rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none transition focus:border-zinc-400 focus:bg-white focus:ring-2 focus:ring-zinc-400/20 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-50 dark:placeholder-zinc-500 dark:focus:border-zinc-600 dark:focus:bg-zinc-800 dark:focus:ring-zinc-500/20"
+                      className="w-full rounded border border-zinc-200 bg-zinc-50/50 px-2.5 py-1.5 text-xs text-zinc-900 placeholder-zinc-400 outline-none transition focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400/20 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-50 dark:placeholder-zinc-500"
                     />
                   </div>
                   <div>
-                    <label htmlFor="home-password" className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Password</label>
+                    <label htmlFor="home-password" className="block text-[11px] font-medium text-zinc-600 dark:text-zinc-400 mb-0.5">Password</label>
                     <input
                       id="home-password"
                       type="password"
@@ -161,26 +161,25 @@ export default function HomePage() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none transition focus:border-zinc-400 focus:bg-white focus:ring-2 focus:ring-zinc-400/20 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-50 dark:placeholder-zinc-500 dark:focus:border-zinc-600 dark:focus:bg-zinc-800 dark:focus:ring-zinc-500/20"
+                      className="w-full rounded border border-zinc-200 bg-zinc-50/50 px-2.5 py-1.5 text-xs text-zinc-900 placeholder-zinc-400 outline-none transition focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400/20 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-50 dark:placeholder-zinc-500"
                     />
                   </div>
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <label className="flex items-center gap-2 cursor-pointer shrink-0">
-                      <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="h-4 w-4 rounded border-zinc-300 text-zinc-900 transition focus:ring-2 focus:ring-zinc-400 focus:ring-offset-0 dark:border-zinc-600 dark:bg-zinc-800" />
-                      <span className="text-sm text-zinc-600 dark:text-zinc-400">Keep me logged in</span>
+                  <div className="flex items-center justify-between gap-1.5 flex-wrap">
+                    <label className="flex items-center gap-1.5 cursor-pointer shrink-0">
+                      <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="h-3.5 w-3.5 rounded border-zinc-300 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800" />
+                      <span className="text-[11px] text-zinc-600 dark:text-zinc-400">Remember me</span>
                     </label>
-                    <Link href="/forgot-password" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50 whitespace-nowrap transition-colors">Forgot password?</Link>
+                    <Link href="/forgot-password" className="text-[11px] font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50">Forgot?</Link>
                   </div>
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90 hover:shadow disabled:opacity-50"
+                    className="w-full rounded bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
                   >
                     {loading ? "Signing in…" : "Sign in"}
                   </button>
-                  <p className="text-center text-xs text-zinc-500 dark:text-zinc-400">
-                    No account?{" "}
-                    <Link href="/register" className="font-medium text-primary hover:underline">Create one</Link>
+                  <p className="text-center text-[11px] text-zinc-500 dark:text-zinc-400">
+                    No account? <Link href="/register" className="font-medium text-primary hover:underline">Create one</Link>
                   </p>
                 </form>
               </div>
