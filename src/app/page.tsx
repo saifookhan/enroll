@@ -99,8 +99,8 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#f4f4f5_1px,transparent_1px),linear-gradient(to_bottom,#f4f4f5_1px,transparent_1px)] bg-[size:1.5rem_1.5rem] [mask-image:radial-gradient(ellipse_70%_50%_at_50%_0%,#000_70%,transparent_100%)] dark:bg-[linear-gradient(to_right,#27272a_1px,transparent_1px),linear-gradient(to_bottom,#27272a_1px,transparent_1px)] dark:[mask-image:radial-gradient(ellipse_70%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
         <div className="relative mx-auto max-w-6xl px-4 sm:px-6 py-8 w-full flex flex-col justify-center">
           <header className="text-center mb-10 flex-shrink-0">
-            <h1 className="flex flex-col items-center gap-3 text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-4xl">
-              <FlowTernLogo size={48} className="justify-center" />
+            <h1 className="flex flex-col items-center gap-3 text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-5xl">
+              <FlowTernLogo size={64} className="justify-center" />
             </h1>
             <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400 max-w-md mx-auto">
               Manage classes, interviews by month, and internships in one place.
@@ -124,14 +124,14 @@ export default function HomePage() {
               </p>
             </div>
             <div className="flex justify-center lg:justify-end">
-              <div className="w-full max-w-sm rounded-2xl border border-zinc-200/60 bg-white p-6 shadow-lg shadow-zinc-200/50 ring-1 ring-zinc-200/50 transition-shadow hover:shadow-xl dark:border-zinc-800/60 dark:bg-zinc-900/95 dark:shadow-zinc-950/50 dark:ring-zinc-800/50">
-                <h2 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+              <div className="w-full max-w-[280px] rounded-xl border border-zinc-200/60 bg-white p-4 shadow-lg shadow-zinc-200/50 ring-1 ring-zinc-200/50 transition-shadow hover:shadow-xl dark:border-zinc-800/60 dark:bg-zinc-900/95 dark:shadow-zinc-950/50 dark:ring-zinc-800/50">
+                <h2 className="text-base font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
                   Sign in
                 </h2>
-                <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
                   Use your email and password.
                 </p>
-                <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+                <form onSubmit={handleSubmit} className="mt-3 space-y-3">
                   {error && (
                     <p className="text-sm text-red-600 dark:text-red-400 rounded-lg bg-red-50 dark:bg-red-950/30 px-3 py-2">{error}</p>
                   )}
@@ -144,7 +144,7 @@ export default function HomePage() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="you@example.com"
-                      className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 outline-none transition focus:border-zinc-400 focus:bg-white focus:ring-2 focus:ring-zinc-400/20 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-50 dark:placeholder-zinc-500 dark:focus:border-zinc-600 dark:focus:bg-zinc-800 dark:focus:ring-zinc-500/20"
+                      className="w-full rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none transition focus:border-zinc-400 focus:bg-white focus:ring-2 focus:ring-zinc-400/20 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-50 dark:placeholder-zinc-500 dark:focus:border-zinc-600 dark:focus:bg-zinc-800 dark:focus:ring-zinc-500/20"
                     />
                   </div>
                   <div>
@@ -156,7 +156,7 @@ export default function HomePage() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 outline-none transition focus:border-zinc-400 focus:bg-white focus:ring-2 focus:ring-zinc-400/20 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-50 dark:placeholder-zinc-500 dark:focus:border-zinc-600 dark:focus:bg-zinc-800 dark:focus:ring-zinc-500/20"
+                      className="w-full rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 outline-none transition focus:border-zinc-400 focus:bg-white focus:ring-2 focus:ring-zinc-400/20 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-50 dark:placeholder-zinc-500 dark:focus:border-zinc-600 dark:focus:bg-zinc-800 dark:focus:ring-zinc-500/20"
                     />
                   </div>
                   <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -169,7 +169,7 @@ export default function HomePage() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90 hover:shadow disabled:opacity-50"
+                    className="w-full rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90 hover:shadow disabled:opacity-50"
                   >
                     {loading ? "Signing in…" : "Sign in"}
                   </button>
