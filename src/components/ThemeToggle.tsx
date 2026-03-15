@@ -2,7 +2,7 @@
 
 import { useTheme } from "@/contexts/ThemeContext";
 
-type Theme = "light" | "dark" | "system";
+type Theme = "light" | "dark";
 
 export default function ThemeToggle() {
   const { theme, setTheme } = useTheme();
@@ -12,7 +12,7 @@ export default function ThemeToggle() {
       className="flex rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 p-0.5"
       suppressHydrationWarning
     >
-      {(["light", "dark", "system"] as const).map((t: Theme) => (
+      {(["light", "dark"] as const).map((t: Theme) => (
         <button
           key={t}
           type="button"

@@ -19,9 +19,6 @@ export default function NavLinks() {
 
   return (
     <div className="flex gap-6">
-      <Link href="/" className={linkClass("/")}>
-        Dashboard
-      </Link>
       <Link href="/enrollments-2027" className={linkClass("/enrollments-2027", true)}>
         Enrollments
       </Link>

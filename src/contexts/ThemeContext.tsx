@@ -9,53 +9,35 @@ import {
 } from "react";
 
 const STORAGE_KEY = "enroll-theme";
-type Theme = "light" | "dark" | "system";
+type Theme = "light" | "dark";
 
-function getResolved(theme: Theme): "light" | "dark" {
-  if (theme === "system") {
-    if (typeof window === "undefined") return "light";
-    return window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "dark"
-      : "light";
-  }
-  return theme;
-}
-
-function applyTheme(resolved: "light" | "dark") {
-  document.documentElement.classList.toggle("dark", resolved === "dark");
+function applyTheme(theme: Theme) {
+  document.documentElement.classList.toggle("dark", theme === "dark");
 }
 
 type ThemeContextType = {
   theme: Theme;
   setTheme: (theme: Theme) => void;
-  resolved: "light" | "dark";
+  resolved: Theme;
 };
 
 const ThemeContext = createContext<ThemeContextType | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("system");
-  const [resolved, setResolved] = useState<"light" | "dark">("light");
+  const [theme, setThemeState] = useState<Theme>("light");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
-    const initial =
-      stored === "light" || stored === "dark" || stored === "system"
-        ? stored
-        : "system";
+    const initial = stored === "light" || stored === "dark" ? stored : "light";
     setThemeState(initial);
-    const res = getResolved(initial);
-    setResolved(res);
-    applyTheme(res);
+    applyTheme(initial);
     setMounted(true);
   }, []);
 
   useEffect(() => {
     if (!mounted) return;
-    const res = getResolved(theme);
-    setResolved(res);
-    applyTheme(res);
+    applyTheme(theme);
     localStorage.setItem(STORAGE_KEY, theme);
   }, [theme, mounted]);
 
@@ -63,20 +45,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setThemeState(t);
   }, []);
 
-  useEffect(() => {
-    if (!mounted || theme !== "system") return;
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = () => {
-      const res = getResolved("system");
-      setResolved(res);
-      applyTheme(res);
-    };
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, [mounted, theme]);
-
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, resolved }}>
+    <ThemeContext.Provider value={{ theme, setTheme, resolved: theme }}>
       {children}
     </ThemeContext.Provider>
   );

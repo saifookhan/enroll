@@ -10,14 +10,14 @@ function NavRightFallback() {
         className="inline-flex rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs text-zinc-500 dark:text-zinc-400"
         aria-hidden
       >
-        Light · Dark · System
+        Light · Dark
       </span>
-      <Link
-        href="/login"
-        className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
-      >
-        Log in
-      </Link>
+        <Link
+          href="/"
+          className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+        >
+          Log in
+        </Link>
     </div>
   );
 }

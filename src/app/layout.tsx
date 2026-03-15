@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Nav from "@/components/Nav";
+import NavBar from "@/components/NavBar";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/components/ThemeProvider";
 
@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Enrollments",
-  description: "Manage your enrollments",
+  title: "FlowTern",
+  description: "FlowTern — manage enrollments, interviews, and internships.",
 };
 
 export default function RootLayout({
@@ -39,7 +39,7 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <AuthProvider>
-            <Nav />
+            <NavBar />
             {children}
           </AuthProvider>
         </ThemeProvider>
