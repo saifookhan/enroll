@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [setupKey, setSetupKey] = useState("");
@@ -39,7 +41,8 @@ export default function RegisterPage() {
         setError(data.error ?? "Registration failed.");
         return;
       }
-      router.push("/?registered=1");
+      login(true, data.userId, data.token);
+      router.push("/");
     } catch {
       setError("Something went wrong. Try again.");
     } finally {

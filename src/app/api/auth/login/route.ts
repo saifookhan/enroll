@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { compare } from "bcryptjs";
-import { ensureUsersTable, getUserByEmail, isDbConfigured } from "@/lib/db";
+import { createSession, ensureUsersTable, getUserByEmail, isDbConfigured } from "@/lib/db";
 
 const LOGIN_EMAIL = process.env.LOGIN_EMAIL ?? "";
 const LOGIN_PASSWORD = process.env.LOGIN_PASSWORD ?? "";
@@ -32,7 +32,12 @@ export async function POST(request: Request) {
         );
       }
       if (user && (await compare(password, user.password_hash))) {
-        return NextResponse.json({ ok: true });
+        const token = await createSession(user.id);
+        return NextResponse.json({
+          ok: true,
+          userId: user.id,
+          token: token ?? undefined,
+        });
       }
       return NextResponse.json(
         { ok: false, error: "Invalid email or password." },
@@ -53,7 +58,7 @@ export async function POST(request: Request) {
     }
 
     if (email === LOGIN_EMAIL && password === LOGIN_PASSWORD) {
-      return NextResponse.json({ ok: true });
+      return NextResponse.json({ ok: true, userId: "env-user", token: undefined });
     }
 
     return NextResponse.json(

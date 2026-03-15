@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const STORAGE_PREFIX = "enroll-interviews-";
+const API_KEY_PREFIX = "interviews-";
 
 const INTERVIEW_STATUSES = [
   { value: "confirmed", label: "Confirmed", color: "green" as const },
@@ -125,6 +127,16 @@ function saveInterviews(month: string, list: Interview[]) {
   localStorage.setItem(STORAGE_PREFIX + month, JSON.stringify(list));
 }
 
+function normalizeInterviews(raw: unknown): Interview[] {
+  if (!Array.isArray(raw)) return [];
+  return (raw as Record<string, unknown>[]).map((i) => ({
+    id: String(i?.id ?? uid()),
+    applicant: String(i?.applicant ?? ""),
+    dateTime: String(i?.dateTime ?? ""),
+    status: String(i?.status ?? INTERVIEW_STATUSES[1].value),
+  }));
+}
+
 export default function InterviewMonthClient({
   month,
   label,
@@ -132,22 +144,42 @@ export default function InterviewMonthClient({
   month: string;
   label: string;
 }) {
+  const { user } = useAuth();
   const [interviews, setInterviews] = useState<Interview[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [applicant, setApplicant] = useState("");
   const [dateTime, setDateTime] = useState("");
-  const [status, setStatus] = useState(INTERVIEW_STATUSES[1].value); // default: Awaiting reply
+  const [status, setStatus] = useState(INTERVIEW_STATUSES[1].value);
+
+  const apiKey = API_KEY_PREFIX + month;
 
   useEffect(() => {
-    setInterviews(loadInterviews(month));
-  }, [month]);
+    if (user?.token) {
+      fetch("/api/user/data/" + encodeURIComponent(apiKey), {
+        headers: { Authorization: "Bearer " + user.token },
+      })
+        .then((r) => (r.ok ? r.json() : []))
+        .then((data) => setInterviews(normalizeInterviews(data)))
+        .catch(() => setInterviews(loadInterviews(month)));
+    } else {
+      setInterviews(loadInterviews(month));
+    }
+  }, [month, apiKey, user?.userId, user?.token]);
 
   const persist = useCallback(
     (list: Interview[]) => {
       setInterviews(list);
-      saveInterviews(month, list);
+      if (user?.token) {
+        fetch("/api/user/data/" + encodeURIComponent(apiKey), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: "Bearer " + user.token },
+          body: JSON.stringify(list),
+        }).catch(() => {});
+      } else {
+        saveInterviews(month, list);
+      }
     },
-    [month]
+    [month, apiKey, user?.token]
   );
 
   const addInterview = useCallback(() => {

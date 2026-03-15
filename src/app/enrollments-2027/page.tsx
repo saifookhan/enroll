@@ -1,9 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const STORAGE_KEY = "enroll-classes";
 const VIEW_KEY = "enroll-view";
+const API_KEY_CLASSES = "classes";
+const API_KEY_VIEW = "view";
 const MIN_YEAR = 2027;
 const MAX_YEAR = 2032;
 
@@ -63,26 +66,90 @@ function loadView(): ViewMode {
   return v === "grid" || v === "compact" ? v : "list";
 }
 
+function normalizeClasses(raw: unknown): ClassItem[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((c: Record<string, unknown>) => ({
+    id: String(c?.id ?? uid()),
+    year: Number(c?.year) ?? MIN_YEAR,
+    students: Array.isArray(c?.students)
+      ? (c.students as Record<string, unknown>[]).map((s) => ({
+          id: String(s?.id ?? uid()),
+          student: String(s?.student ?? ""),
+          grade: String(s?.grade ?? ""),
+          origin: String(s?.origin ?? ""),
+          status: String(s?.status ?? ""),
+        }))
+      : [],
+  }));
+}
+
 export default function EnrollmentsPage() {
+  const { user } = useAuth();
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [yearToAdd, setYearToAdd] = useState(2027);
   const [error, setError] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("list");
-
   useEffect(() => {
-    setClasses(loadClasses());
-    setViewMode(loadView());
-  }, []);
+    let cancelled = false;
+    if (user?.token) {
+      (async () => {
+        try {
+          const [classesRes, viewRes] = await Promise.all([
+            fetch("/api/user/data/" + API_KEY_CLASSES, { headers: { Authorization: "Bearer " + user.token } }),
+            fetch("/api/user/data/" + API_KEY_VIEW, { headers: { Authorization: "Bearer " + user.token } }),
+          ]);
+          if (cancelled) return;
+          const classesData = classesRes.ok ? await classesRes.json() : [];
+          const viewData = viewRes.ok ? await viewRes.json() : null;
+          setClasses(normalizeClasses(classesData));
+          setViewMode(viewData === "grid" || viewData === "compact" ? viewData : "list");
+        } catch {
+          setClasses(loadClasses());
+          setViewMode(loadView());
+        }
+      })();
+    } else {
+      setClasses(loadClasses());
+      setViewMode(loadView());
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.userId, user?.token]);
 
-  const setView = useCallback((v: ViewMode) => {
-    setViewMode(v);
-    if (typeof window !== "undefined") localStorage.setItem(VIEW_KEY, v);
-  }, []);
+  const setView = useCallback(
+    (v: ViewMode) => {
+      setViewMode(v);
+      if (typeof window === "undefined") return;
+      if (user?.token) {
+        fetch("/api/user/data/" + API_KEY_VIEW, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: "Bearer " + user.token },
+          body: JSON.stringify(v),
+        }).catch(() => {});
+      } else {
+        localStorage.setItem(VIEW_KEY, v);
+      }
+    },
+    [user?.token]
+  );
 
-  const persist = useCallback((next: ClassItem[]) => {
-    setClasses(next);
-    saveClasses(next);
-  }, []);
+  const persist = useCallback(
+    (next: ClassItem[]) => {
+      setClasses(next);
+      if (typeof window === "undefined") return;
+      if (user?.token) {
+        fetch("/api/user/data/" + API_KEY_CLASSES, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: "Bearer " + user.token },
+          body: JSON.stringify(next),
+        }).catch(() => {});
+      } else {
+        saveClasses(next);
+      }
+    },
+    [user?.token]
+  );
 
   const addClass = useCallback(() => {
     setError("");

@@ -32,7 +32,7 @@ export default function HomePage() {
         setError(data.error ?? "Sign in failed.");
         return;
       }
-      login(remember);
+      login(remember, data.userId, data.token);
     } catch {
       setError("Something went wrong. Try again.");
     } finally {
@@ -100,12 +100,12 @@ export default function HomePage() {
 
   return (
     <div className="min-h-[calc(100vh-4rem)] font-sans flex flex-col">
-      <div className="relative flex-1 flex flex-col justify-center bg-zinc-50 dark:bg-zinc-950">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#f4f4f5_1px,transparent_1px),linear-gradient(to_bottom,#f4f4f5_1px,transparent_1px)] bg-[size:1.5rem_1.5rem] [mask-image:radial-gradient(ellipse_70%_50%_at_50%_0%,#000_70%,transparent_100%)] dark:bg-[linear-gradient(to_right,#27272a_1px,transparent_1px),linear-gradient(to_bottom,#27272a_1px,transparent_1px)] dark:[mask-image:radial-gradient(ellipse_70%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
+      <div className="relative flex-1 flex flex-col justify-center bg-[#f3f3f3] dark:bg-zinc-950">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#e8e8e8_1px,transparent_1px),linear-gradient(to_bottom,#e8e8e8_1px,transparent_1px)] bg-[size:1.5rem_1.5rem] [mask-image:radial-gradient(ellipse_70%_50%_at_50%_0%,#000_70%,transparent_100%)] dark:bg-[linear-gradient(to_right,#27272a_1px,transparent_1px),linear-gradient(to_bottom,#27272a_1px,transparent_1px)] dark:[mask-image:radial-gradient(ellipse_70%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
         <div className="relative mx-auto max-w-6xl px-4 sm:px-6 py-8 w-full flex flex-col justify-center">
           <header className="text-center mb-10 flex-shrink-0">
-            <h1 className="flex flex-col items-center gap-3 text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-5xl">
-              <FlowTernLogo size={64} className="justify-center" />
+            <h1 className="flex flex-col items-center gap-3">
+              <FlowTernLogo size={320} markOnly className="justify-center" />
             </h1>
             <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400 max-w-md mx-auto">
               Manage classes, interviews by month, and internships in one place.
@@ -114,13 +114,13 @@ export default function HomePage() {
           <div className="grid gap-8 lg:grid-cols-2 lg:gap-14 lg:items-center flex-shrink-0">
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400 dark:bg-emerald-500/15 w-fit">
+                <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium w-fit" style={{ backgroundColor: 'rgba(30, 30, 78, 0.15)', color: '#1e1e4e' }}>
                   Enrollments by year
                 </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-400 dark:bg-amber-500/15 w-fit">
+                <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium w-fit" style={{ backgroundColor: 'rgba(163, 0, 49, 0.15)', color: '#a30031' }}>
                   Interviews by month
                 </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-700 dark:text-red-400 dark:bg-red-500/15 w-fit">
+                <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium w-fit" style={{ backgroundColor: 'rgba(181, 23, 97, 0.15)', color: '#b51761' }}>
                   Internships by class
                 </span>
               </div>

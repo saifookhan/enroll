@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { hash } from "bcryptjs";
-import { ensureUsersTable, createUser, getUserByEmail, getUserCount, isDbConfigured } from "@/lib/db";
+import { createSession, ensureUsersTable, createUser, getUserByEmail, getUserCount, isDbConfigured } from "@/lib/db";
 
 export async function POST(request: Request) {
   try {
@@ -58,8 +58,10 @@ export async function POST(request: Request) {
     }
 
     const passwordHash = await hash(password, 10);
-    await createUser(email, passwordHash);
-    return NextResponse.json({ ok: true });
+    const user = await createUser(email, passwordHash);
+    if (!user) return NextResponse.json({ ok: false, error: "Failed to create user." }, { status: 500 });
+    const token = await createSession(user.id);
+    return NextResponse.json({ ok: true, userId: user.id, token: token ?? undefined });
   } catch {
     return NextResponse.json(
       { ok: false, error: "Something went wrong." },

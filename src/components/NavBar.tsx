@@ -21,14 +21,22 @@ function NavRightFallback() {
   );
 }
 
+const MINIMAL_NAV_PATHS = ["/", "/register", "/forgot-password"];
+
 export default function NavBar() {
   const pathname = usePathname();
-  const isHome = pathname === "/";
+  const useMinimalNav = MINIMAL_NAV_PATHS.includes(pathname);
 
-  if (isHome) {
+  if (useMinimalNav) {
     return (
       <nav className="border-b border-zinc-200/50 bg-white/80 backdrop-blur dark:border-zinc-800/50 dark:bg-zinc-900/80">
-        <div className="mx-auto flex max-w-5xl items-center justify-end px-6 py-3">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
+          <Link
+            href="/"
+            className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+          >
+            Home
+          </Link>
           <Suspense fallback={<span className="h-9 w-20 rounded-md bg-zinc-200 dark:bg-zinc-700" />}>
             <ThemeToggle />
           </Suspense>

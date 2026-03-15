@@ -5,21 +5,21 @@
 
 /*
  * FlowTern palette
- * - Primary (teal): brand, logo accent, primary buttons, active states — flow/water feel
- * - Neutrals (zinc): backgrounds, text, borders
- * - Semantic: emerald (enrollments/success), amber (interviews/pending), red (internships/errors)
+ * - #1e1e4e (navy)
+ * - #a30031 (burgundy)
+ * - #b51761 (magenta) — primary: logo, buttons, links
  */
 :root {
   --background: #ffffff;
   --foreground: #171717;
-  --primary: 20 184 166; /* teal-500 */
+  --primary: #b51761;
   --primary-foreground: #ffffff;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-primary: rgb(var(--primary));
+  --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -28,8 +28,8 @@
 :root.dark {
   --background: #0a0a0a;
   --foreground: #ededed;
-  --primary: 45 212 191; /* teal-400 for dark */
-  --primary-foreground: #0f766e;
+  --primary: #d64d8a;
+  --primary-foreground: #ffffff;
 }
 
 body {
