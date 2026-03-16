@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function NavLinks() {
   const pathname = usePathname();
+  const { t } = useLanguage();
 
   const linkClass = (path: string, matchPrefix?: boolean) => {
     const isActive = matchPrefix
@@ -20,16 +22,16 @@ export default function NavLinks() {
   return (
     <div className="flex gap-6">
       <Link href="/" className={linkClass("/")}>
-        Home
+        {t("home")}
       </Link>
       <Link href="/enrollments-2027" className={linkClass("/enrollments-2027", true)}>
-        Enrollments
+        {t("enrollments")}
       </Link>
       <Link href="/interviews" className={linkClass("/interviews", true)}>
-        Interviews
+        {t("interviews")}
       </Link>
       <Link href="/internships" className={linkClass("/internships", true)}>
-        Internships
+        {t("internships")}
       </Link>
     </div>
   );

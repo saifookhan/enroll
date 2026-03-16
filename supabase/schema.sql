@@ -1,5 +1,10 @@
 -- Run this once in Supabase: SQL Editor → New query → paste and run.
 -- Creates tables for FlowTern: users, sessions, and per-user data.
+--
+-- If registration returns "Database denied access" or "Failed to create user",
+-- in Supabase go to: Table Editor → flowtern_users → click "RLS" and either
+-- disable RLS for this table or add a policy that allows INSERT (the app uses
+-- the service role key which normally bypasses RLS; if it doesn’t, allow insert).
 
 CREATE TABLE IF NOT EXISTS flowtern_users (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -25,11 +25,13 @@ export async function POST(request: Request) {
         await ensureUsersTable();
         user = await getUserByEmail(email);
       } catch (err) {
-        console.error("Login DB error:", err);
-        return NextResponse.json(
-          { ok: false, error: "Database error. Check Supabase: key must start with sb_secret_ and table flowtern_users must exist." },
-          { status: 503 }
-        );
+        const message = err instanceof Error ? err.message : String(err);
+        console.error("Login DB error:", message);
+        const friendly =
+          message.toLowerCase().includes("invalid") && (message.toLowerCase().includes("api key") || message.toLowerCase().includes("apikey"))
+            ? "Invalid Supabase API key. In .env.local set SUPABASE_SERVICE_ROLE_KEY to the service role key (Project Settings → API → service_role secret), not the anon key. Remove any extra spaces or newlines."
+            : "Database error. Check Supabase: use the service role key and ensure table flowtern_users exists.";
+        return NextResponse.json({ ok: false, error: friendly }, { status: 503 });
       }
       if (user && (await compare(password, user.password_hash))) {
         const token = await createSession(user.id);
@@ -65,10 +67,13 @@ export async function POST(request: Request) {
       { ok: false, error: "Invalid email or password." },
       { status: 401 }
     );
-  } catch {
-    return NextResponse.json(
-      { ok: false, error: "Something went wrong." },
-      { status: 500 }
-    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    const lower = message.toLowerCase();
+    const friendly =
+      lower.includes("invalid") && (lower.includes("api key") || lower.includes("apikey"))
+        ? "Invalid Supabase API key. In .env.local set SUPABASE_SERVICE_ROLE_KEY to the service role key (Project Settings → API → service_role secret), not the anon key."
+        : "Something went wrong.";
+    return NextResponse.json({ ok: false, error: friendly }, { status: 500 });
   }
 }

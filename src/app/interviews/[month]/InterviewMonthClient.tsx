@@ -2,14 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const STORAGE_PREFIX = "enroll-interviews-";
 const API_KEY_PREFIX = "interviews-";
 
 const INTERVIEW_STATUSES = [
-  { value: "confirmed", label: "Confirmed", color: "green" as const },
-  { value: "awaiting-reply", label: "Awaiting", color: "yellow" as const },
-  { value: "annulled", label: "Annulled", color: "red" as const },
+  { value: "confirmed", labelKey: "confirmed" as const, color: "green" as const },
+  { value: "awaiting-reply", labelKey: "awaiting" as const, color: "yellow" as const },
+  { value: "annulled", labelKey: "annulled" as const, color: "red" as const },
 ];
 
 const STATUS_COLORS: Record<string, "red" | "yellow" | "green"> = {
@@ -18,7 +19,7 @@ const STATUS_COLORS: Record<string, "red" | "yellow" | "green"> = {
   confirmed: "green",
 };
 
-function StatusDot({ status, size = "md" }: { status: string; size?: "sm" | "md" }) {
+function StatusDot({ status, size = "md", title }: { status: string; size?: "sm" | "md"; title?: string }) {
   const color = STATUS_COLORS[status] ?? "yellow";
   const sizeClass = size === "sm" ? "h-2.5 w-2.5" : "h-3.5 w-3.5";
   return (
@@ -30,7 +31,7 @@ function StatusDot({ status, size = "md" }: { status: string; size?: "sm" | "md"
             ? "bg-amber-400"
             : "bg-emerald-500"
       }`}
-      title={INTERVIEW_STATUSES.find((s) => s.value === status)?.label ?? status}
+      title={title ?? status}
       aria-hidden
     />
   );
@@ -47,6 +48,7 @@ function StatusDropdown({
   size?: "sm" | "md";
   className?: string;
 }) {
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const current = INTERVIEW_STATUSES.find((s) => s.value === value) ?? INTERVIEW_STATUSES[1];
@@ -69,8 +71,8 @@ function StatusDropdown({
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        <StatusDot status={current.value} size={size} />
-        <span>{current.label}</span>
+        <StatusDot status={current.value} size={size} title={t(current.labelKey)} />
+        <span>{t(current.labelKey)}</span>
         <span className="ml-0.5 text-zinc-400">▼</span>
       </button>
       {open && (
@@ -88,8 +90,8 @@ function StatusDropdown({
                 }}
                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-900 hover:bg-zinc-100 dark:text-zinc-50 dark:hover:bg-zinc-700"
               >
-                <StatusDot status={s.value} size={size} />
-                <span>{s.label}</span>
+                <StatusDot status={s.value} size={size} title={t(s.labelKey)} />
+                <span>{t(s.labelKey)}</span>
               </button>
             </li>
           ))}
@@ -145,6 +147,7 @@ export default function InterviewMonthClient({
   label: string;
 }) {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [interviews, setInterviews] = useState<Interview[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [applicant, setApplicant] = useState("");
@@ -232,7 +235,7 @@ export default function InterviewMonthClient({
           type="button"
           onClick={() => setShowForm((v) => !v)}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-xl text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
-          aria-label="Add interview"
+          aria-label={t("addInterview")}
         >
           +
         </button>
@@ -241,7 +244,7 @@ export default function InterviewMonthClient({
       {showForm && (
         <div className="mt-6 flex flex-wrap items-end gap-3 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
           <div>
-            <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">Applicant</label>
+            <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">{t("applicant")}</label>
             <input
               type="text"
               value={applicant}
@@ -252,7 +255,7 @@ export default function InterviewMonthClient({
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">Date & time</label>
+            <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">{t("dateTime")}</label>
             <input
               type="text"
               value={dateTime}
@@ -273,7 +276,7 @@ export default function InterviewMonthClient({
             onClick={addInterview}
             className="rounded-md bg-zinc-800 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-200 dark:text-zinc-900 dark:hover:bg-zinc-300"
           >
-            Add interview
+            {t("addInterview")}
           </button>
         </div>
       )}
@@ -283,13 +286,13 @@ export default function InterviewMonthClient({
           <thead>
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                Applicant
+                {t("applicant")}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                Date & time
+                {t("dateTime")}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                Status
+                {t("status")}
               </th>
               <th className="px-6 py-3 w-8" />
             </tr>
@@ -298,7 +301,7 @@ export default function InterviewMonthClient({
             {interviews.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-6 py-12 text-center text-sm text-zinc-500 dark:text-zinc-400">
-                  No interviews scheduled for this month. Use the + button to add one.
+                  {t("noInterviewsThisMonth")}
                 </td>
               </tr>
             ) : (

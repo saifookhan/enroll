@@ -1,23 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import FlowTernLogo from "@/components/FlowTernLogo";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function HomePage() {
   const { isLoggedIn, ready, login } = useAuth();
+  const { t } = useLanguage();
+  const passwordRef = useRef<HTMLInputElement>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (!email.trim() || !password) {
-      setError("Please enter email and password.");
+    const passwordValue = passwordRef.current?.value ?? password;
+    if (!email.trim() || !passwordValue) {
+      setError(t("pleaseEnterEmailPassword"));
       return;
     }
     setLoading(true);
@@ -25,16 +30,16 @@ export default function HomePage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password }),
+        body: JSON.stringify({ email: email.trim(), password: passwordValue }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data.error ?? "Sign in failed.");
+        setError(data.error ?? t("signInFailed"));
         return;
       }
       login(remember, data.userId, data.token);
     } catch {
-      setError("Something went wrong. Try again.");
+      setError(t("somethingWrong"));
     } finally {
       setLoading(false);
     }
@@ -43,7 +48,7 @@ export default function HomePage() {
   if (!ready) {
     return (
       <div className="min-h-screen bg-zinc-50 font-sans dark:bg-zinc-950 flex items-center justify-center">
-        <p className="text-zinc-500 dark:text-zinc-400">Loading…</p>
+        <p className="text-zinc-500 dark:text-zinc-400">{t("loading")}</p>
       </div>
     );
   }
@@ -53,10 +58,10 @@ export default function HomePage() {
       <div className="min-h-screen bg-zinc-50 font-sans dark:bg-zinc-950">
         <main className="mx-auto max-w-4xl px-6 py-16">
           <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-            Dashboard
+            {t("dashboard")}
           </h1>
           <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-            Your hub for enrollments, interviews, and internships.
+            {t("yourHub")}
           </p>
           <div className="mt-12 grid gap-6 sm:grid-cols-3">
             <Link
@@ -64,10 +69,10 @@ export default function HomePage() {
               className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm transition hover:border-zinc-300 hover:shadow dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
             >
               <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
-                Enrollments
+                {t("enrollments")}
               </h2>
               <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-                Manage 2027 enrollments.
+                {t("manageEnrollments2027")}
               </p>
             </Link>
             <Link
@@ -75,10 +80,10 @@ export default function HomePage() {
               className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm transition hover:border-zinc-300 hover:shadow dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
             >
               <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
-                Interviews
+                {t("interviews")}
               </h2>
               <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-                By month (Jan–Dec 2026).
+                {t("byMonth2026")}
               </p>
             </Link>
             <Link
@@ -86,10 +91,10 @@ export default function HomePage() {
               className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm transition hover:border-zinc-300 hover:shadow dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
             >
               <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
-                Internships
+                {t("internships")}
               </h2>
               <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-                Class 1 and Class 2.
+                {t("class1And2")}
               </p>
             </Link>
           </div>
@@ -108,40 +113,40 @@ export default function HomePage() {
               <FlowTernLogo size={320} markOnly className="justify-center" />
             </h1>
             <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400 max-w-md mx-auto">
-              All in one place.
+              {t("allInOnePlace")}
             </p>
           </header>
           <div className="flex flex-col items-center gap-8 flex-shrink-0 max-w-md mx-auto">
             <div className="flex flex-col items-center gap-3 text-center">
               <div className="flex flex-wrap justify-center gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium" style={{ backgroundColor: 'rgba(30, 30, 78, 0.15)', color: '#1e1e4e' }}>
-                  Enrollments by year
+                  {t("enrollmentsByYear")}
                 </span>
                 <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium" style={{ backgroundColor: 'rgba(163, 0, 49, 0.15)', color: '#a30031' }}>
-                  Interviews by month
+                  {t("interviewsByMonth")}
                 </span>
                 <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium" style={{ backgroundColor: 'rgba(181, 23, 97, 0.15)', color: '#b51761' }}>
-                  Internships by class
+                  {t("internshipsByClass")}
                 </span>
               </div>
               <p className="text-sm text-zinc-500 dark:text-zinc-500">
-                Sign in to get started.
+                {t("signInToGetStarted")}
               </p>
             </div>
             <div className="w-full flex justify-center">
               <div className="w-full max-w-[220px] rounded-lg border border-zinc-200/60 bg-white p-3 shadow-md dark:border-zinc-800/60 dark:bg-zinc-900/95">
                 <h2 className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-                  Sign in
+                  {t("signIn")}
                 </h2>
                 <p className="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">
-                  Email and password.
+                  {t("emailAndPassword")}
                 </p>
                 <form onSubmit={handleSubmit} className="mt-2.5 space-y-2.5">
                   {error && (
                     <p className="text-xs text-red-600 dark:text-red-400 rounded bg-red-50 dark:bg-red-950/30 px-2 py-1.5">{error}</p>
                   )}
                   <div>
-                    <label htmlFor="home-email" className="block text-[11px] font-medium text-zinc-600 dark:text-zinc-400 mb-0.5">Email</label>
+                    <label htmlFor="home-email" className="block text-[11px] font-medium text-zinc-600 dark:text-zinc-400 mb-0.5">{t("email")}</label>
                     <input
                       id="home-email"
                       type="email"
@@ -153,33 +158,49 @@ export default function HomePage() {
                     />
                   </div>
                   <div>
-                    <label htmlFor="home-password" className="block text-[11px] font-medium text-zinc-600 dark:text-zinc-400 mb-0.5">Password</label>
-                    <input
-                      id="home-password"
-                      type="password"
-                      autoComplete="current-password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full rounded border border-zinc-200 bg-zinc-50/50 px-2.5 py-1.5 text-xs text-zinc-900 placeholder-zinc-400 outline-none transition focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400/20 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-50 dark:placeholder-zinc-500"
-                    />
+                    <label htmlFor="home-password" className="block text-[11px] font-medium text-zinc-600 dark:text-zinc-400 mb-0.5">{t("password")}</label>
+                    <div className="relative">
+                      <input
+                        ref={passwordRef}
+                        id="home-password"
+                        type={showPassword ? "text" : "password"}
+                        autoComplete="current-password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        onInput={(e) => setPassword((e.target as HTMLInputElement).value)}
+                        placeholder="••••••••"
+                        className="w-full rounded border border-zinc-200 bg-zinc-50/50 px-2.5 py-1.5 pr-8 text-xs text-zinc-900 placeholder-zinc-400 outline-none transition focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400/20 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-50 dark:placeholder-zinc-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((p) => !p)}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded"
+                        aria-label={showPassword ? t("hidePassword") : t("showPassword")}
+                      >
+                        {showPassword ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        )}
+                      </button>
+                    </div>
                   </div>
                   <div className="flex items-center justify-between gap-1.5 flex-wrap">
                     <label className="flex items-center gap-1.5 cursor-pointer shrink-0">
                       <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="h-3.5 w-3.5 rounded border-zinc-300 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800" />
-                      <span className="text-[11px] text-zinc-600 dark:text-zinc-400">Remember me</span>
+                      <span className="text-[11px] text-zinc-600 dark:text-zinc-400">{t("rememberMe")}</span>
                     </label>
-                    <Link href="/forgot-password" className="text-[11px] font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50">Forgot?</Link>
+                    <Link href="/forgot-password" className="text-[11px] font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50">{t("forgot")}</Link>
                   </div>
                   <button
                     type="submit"
                     disabled={loading}
                     className="w-full rounded bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
                   >
-                    {loading ? "Signing in…" : "Sign in"}
+                    {loading ? t("signingIn") : t("signIn")}
                   </button>
                   <p className="text-center text-[11px] text-zinc-500 dark:text-zinc-400">
-                    No account? <Link href="/register" className="font-medium text-primary hover:underline">Create one</Link>
+                    {t("noAccount")} <Link href="/register" className="font-medium text-primary hover:underline">{t("createOne")}</Link>
                   </p>
                 </form>
               </div>

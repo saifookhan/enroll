@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? "";
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? "").trim();
+const supabaseServiceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "").trim();
 
 function getClient() {
   if (!supabaseUrl || !supabaseServiceKey) return null;
@@ -32,16 +32,21 @@ export async function getUserByEmail(email: string): Promise<User | null> {
   return data as User;
 }
 
-export async function createUser(email: string, passwordHash: string): Promise<User | null> {
+export type CreateUserResult = { user: User } | { error: string; code?: string };
+
+export async function createUser(email: string, passwordHash: string): Promise<CreateUserResult> {
   const supabase = getClient();
-  if (!supabase) return null;
+  if (!supabase) return { error: "Database not configured.", code: "NO_CLIENT" };
   const { data, error } = await supabase
     .from("flowtern_users")
     .insert({ email: email.toLowerCase().trim(), password_hash: passwordHash })
     .select("id, email, password_hash, created_at")
     .single();
-  if (error) return null;
-  return data as User;
+  if (error) {
+    console.error("[createUser]", error.message, error.code, error.details);
+    return { error: error.message, code: error.code ?? undefined };
+  }
+  return { user: data as User };
 }
 
 export async function getUserCount(): Promise<number> {

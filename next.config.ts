@@ -12,7 +12,11 @@ if (existsSync(envPath)) {
       const eq = trimmed.indexOf("=");
       if (eq > 0) {
         const key = trimmed.slice(0, eq).trim();
-        const value = trimmed.slice(eq + 1).trim();
+        let value = trimmed.slice(eq + 1).trim();
+        // Strip optional surrounding quotes so SUPABASE_SERVICE_ROLE_KEY="eyJ..." works
+        if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+          value = value.slice(1, -1);
+        }
         if (key && !process.env[key]) process.env[key] = value;
       }
     }
