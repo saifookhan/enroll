@@ -6,9 +6,9 @@ import { useLanguage } from "@/contexts/LanguageContext";
 
 const STATUS_OPTIONS = ["", "Enrolled", "Pending", "Withdrawn", "Completed"];
 
-type Internship = {
+export type Internship = {
   id: string;
-  position: string;
+  nameSurname: string;
   companyProgram: string;
   status: string;
 };
@@ -17,11 +17,11 @@ function uid() {
   return Math.random().toString(36).slice(2);
 }
 
-function normalizeList(raw: unknown): Internship[] {
+export function normalizeInternshipList(raw: unknown): Internship[] {
   if (!Array.isArray(raw)) return [];
   return raw.map((r: Record<string, unknown>) => ({
     id: String(r?.id ?? uid()),
-    position: String(r?.position ?? ""),
+    nameSurname: String(r?.nameSurname ?? r?.position ?? ""),
     companyProgram: String(r?.companyProgram ?? ""),
     status: String(r?.status ?? ""),
   }));
@@ -43,7 +43,7 @@ export default function InternshipsClassClient({
   const { user } = useAuth();
   const { t } = useLanguage();
   const [list, setList] = useState<Internship[]>([]);
-  const [position, setPosition] = useState("");
+  const [nameSurname, setNameSurname] = useState("");
   const [companyProgram, setCompanyProgram] = useState("");
   const [status, setStatus] = useState("");
 
@@ -53,7 +53,7 @@ export default function InternshipsClassClient({
       headers: { Authorization: "Bearer " + user.token },
     })
       .then((r) => (r.ok ? r.json() : []))
-      .then((data) => setList(normalizeList(data)))
+      .then((data) => setList(normalizeInternshipList(data)))
       .catch(() => setList([]));
   }, [dataKey, user?.userId, user?.token]);
 
@@ -76,15 +76,15 @@ export default function InternshipsClassClient({
   const addOne = useCallback(() => {
     const newItem: Internship = {
       id: uid(),
-      position: position.trim(),
+      nameSurname: nameSurname.trim(),
       companyProgram: companyProgram.trim(),
       status: status.trim(),
     };
     persist([...list, newItem]);
-    setPosition("");
+    setNameSurname("");
     setCompanyProgram("");
     setStatus("");
-  }, [list, position, companyProgram, status, persist]);
+  }, [list, nameSurname, companyProgram, status, persist]);
 
   const removeOne = useCallback(
     (id: string) => {
@@ -105,11 +105,11 @@ export default function InternshipsClassClient({
       <div className="mt-6 flex flex-wrap items-end gap-2">
         <input
           type="text"
-          placeholder={t("position")}
-          value={position}
-          onChange={(e) => setPosition(e.target.value)}
+          placeholder={t("nameSurname")}
+          value={nameSurname}
+          onChange={(e) => setNameSurname(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && addOne()}
-          className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 dark:placeholder-zinc-500 min-w-[140px]"
+          className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 dark:placeholder-zinc-500 min-w-[180px]"
         />
         <input
           type="text"
@@ -151,7 +151,7 @@ export default function InternshipsClassClient({
           <thead>
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                {t("position")}
+                {t("nameSurname")}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                 {t("companyProgram")}
@@ -176,7 +176,7 @@ export default function InternshipsClassClient({
               list.map((item) => (
                 <tr key={item.id}>
                   <td className="px-6 py-3 text-sm text-zinc-900 dark:text-zinc-50">
-                    {item.position || "—"}
+                    {item.nameSurname || "—"}
                   </td>
                   <td className="px-6 py-3 text-sm text-zinc-700 dark:text-zinc-300">
                     {item.companyProgram || "—"}
