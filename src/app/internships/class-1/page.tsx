@@ -1,41 +1,14 @@
 "use client";
 
-import { useLanguage } from "@/contexts/LanguageContext";
+import InternshipsClassClient from "../InternshipsClassClient";
 
 export default function InternshipsClass1Page() {
-  const { t } = useLanguage();
   return (
-    <>
-      <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
-        {t("internshipsClass1")}
-      </h2>
-      <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-        {t("manageInternshipsClass1")}
-      </p>
-      <div className="mt-8 overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-        <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
-          <thead>
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                {t("position")}
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                {t("companyProgram")}
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                {t("status")}
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-            <tr>
-              <td colSpan={3} className="px-6 py-12 text-center text-sm text-zinc-500 dark:text-zinc-400">
-                {t("noInternshipsYetClass1")}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </>
+    <InternshipsClassClient
+      dataKey="internships-class-1"
+      titleKey="internshipsClass1"
+      descriptionKey="manageInternshipsClass1"
+      emptyMessageKey="noInternshipsYetClass1"
+    />
   );
 }

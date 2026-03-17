@@ -72,6 +72,7 @@ type Student = {
 type ClassItem = {
   id: string;
   year: number;
+  name: string;
   students: Student[];
 };
 
@@ -89,6 +90,7 @@ function loadClasses(): ClassItem[] {
     return parsed.map((c) => ({
       id: c.id || uid(),
       year: Number(c.year) || MIN_YEAR,
+      name: typeof c.name === "string" ? c.name.trim() : "",
       students: Array.isArray(c.students)
         ? c.students.map((s) => ({
             id: s.id || uid(),
@@ -121,6 +123,7 @@ function normalizeClasses(raw: unknown): ClassItem[] {
   return raw.map((c: Record<string, unknown>) => ({
     id: String(c?.id ?? uid()),
     year: Number(c?.year) ?? MIN_YEAR,
+    name: typeof c?.name === "string" ? c.name.trim() : "",
     students: Array.isArray(c?.students)
       ? (c.students as Record<string, unknown>[]).map((s) => ({
           id: String(s?.id ?? uid()),
@@ -211,7 +214,7 @@ export default function EnrollmentsPage() {
     }
     const next = [
       ...classes,
-      { id: uid(), year: yearToAdd, students: [] },
+      { id: uid(), year: yearToAdd, name: "", students: [] },
     ].sort((a, b) => b.year - a.year);
     persist(next);
   }, [yearToAdd, classes, persist]);
@@ -260,6 +263,16 @@ export default function EnrollmentsPage() {
       persist(classes.filter((c) => c.id !== classId));
     },
     [classes, persist, t]
+  );
+
+  const renameClass = useCallback(
+    (classId: string, newName: string) => {
+      const next = classes.map((c) =>
+        c.id === classId ? { ...c, name: newName.trim() } : c
+      );
+      persist(next);
+    },
+    [classes, persist]
   );
 
   return (
@@ -353,6 +366,7 @@ export default function EnrollmentsPage() {
                 onAddStudent={addStudent}
                 onRemoveStudent={removeStudent}
                 onRemoveClass={removeClass}
+                onRenameClass={renameClass}
               />
             ))
           ) : (
@@ -363,6 +377,7 @@ export default function EnrollmentsPage() {
                 onAddStudent={addStudent}
                 onRemoveStudent={removeStudent}
                 onRemoveClass={removeClass}
+                onRenameClass={renameClass}
               />
             ))
           )}
@@ -377,19 +392,24 @@ function ClassBlockCompact({
   onAddStudent,
   onRemoveStudent,
   onRemoveClass,
+  onRenameClass,
 }: {
   classItem: ClassItem;
   onAddStudent: (classId: string, student: string, grade: string, origin: string, status: string, gender: string) => void;
   onRemoveStudent: (classId: string, studentId: string) => void;
   onRemoveClass: (classId: string) => void;
+  onRenameClass: (classId: string, name: string) => void;
 }) {
   const { t } = useLanguage();
   const [open, setOpen] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState(classItem.name || "");
   const [student, setStudent] = useState("");
   const [grade, setGrade] = useState("");
   const [origin, setOrigin] = useState("");
   const [status, setStatus] = useState("");
   const [gender, setGender] = useState("");
+  const displayName = (classItem.name && classItem.name.trim()) ? classItem.name.trim() : `${t("class")} ${classItem.year}`;
 
   const handleAdd = () => {
     if (!student.trim()) return;
@@ -408,8 +428,48 @@ function ClassBlockCompact({
         onClick={() => setOpen((o) => !o)}
         className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
       >
-        <span className="font-semibold text-zinc-900 dark:text-zinc-50">
-          {t("class")} {classItem.year}
+        <span className="font-semibold text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
+          {editingName ? (
+            <input
+              type="text"
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              onBlur={() => {
+                onRenameClass(classItem.id, nameInput);
+                setEditingName(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  onRenameClass(classItem.id, nameInput);
+                  setEditingName(false);
+                }
+                if (e.key === "Escape") {
+                  setNameInput(classItem.name || "");
+                  setEditingName(false);
+                }
+              }}
+              onClick={(e) => e.stopPropagation()}
+              placeholder={t("classNamePlaceholder")}
+              className="rounded border border-zinc-300 bg-white px-1.5 py-0.5 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 min-w-[100px]"
+            />
+          ) : (
+            <>
+              {displayName}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setNameInput(classItem.name || "");
+                  setEditingName(true);
+                }}
+                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded p-0.5"
+                aria-label={t("classNamePlaceholder")}
+                title={t("classNamePlaceholder")}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+              </button>
+            </>
+          )}
         </span>
         <span className="text-sm text-zinc-500 dark:text-zinc-400">
           {classItem.students.length} {classItem.students.length !== 1 ? t("studentsCountPlural") : t("studentsCount")}
@@ -498,18 +558,23 @@ function ClassBlock({
   onAddStudent,
   onRemoveStudent,
   onRemoveClass,
+  onRenameClass,
 }: {
   classItem: ClassItem;
   onAddStudent: (classId: string, student: string, grade: string, origin: string, status: string, gender: string) => void;
   onRemoveStudent: (classId: string, studentId: string) => void;
   onRemoveClass: (classId: string) => void;
+  onRenameClass: (classId: string, name: string) => void;
 }) {
   const { t } = useLanguage();
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState(classItem.name || "");
   const [student, setStudent] = useState("");
   const [grade, setGrade] = useState("");
   const [origin, setOrigin] = useState("");
   const [status, setStatus] = useState("");
   const [gender, setGender] = useState("");
+  const displayName = (classItem.name && classItem.name.trim()) ? classItem.name.trim() : `${t("class")} ${classItem.year}`;
 
   const handleAdd = () => {
     if (!student.trim()) return;
@@ -524,8 +589,46 @@ function ClassBlock({
   return (
     <section className="rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 overflow-hidden">
       <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 px-4 py-3">
-        <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">
-          {t("class")} {classItem.year}
+        <h3 className="font-semibold text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
+          {editingName ? (
+            <input
+              type="text"
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              onBlur={() => {
+                onRenameClass(classItem.id, nameInput);
+                setEditingName(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  onRenameClass(classItem.id, nameInput);
+                  setEditingName(false);
+                }
+                if (e.key === "Escape") {
+                  setNameInput(classItem.name || "");
+                  setEditingName(false);
+                }
+              }}
+              placeholder={t("classNamePlaceholder")}
+              className="rounded border border-zinc-300 bg-white px-2 py-1 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 min-w-[120px]"
+            />
+          ) : (
+            <>
+              {displayName}
+              <button
+                type="button"
+                onClick={() => {
+                  setNameInput(classItem.name || "");
+                  setEditingName(true);
+                }}
+                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded p-1"
+                aria-label={t("classNamePlaceholder")}
+                title={t("classNamePlaceholder")}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+              </button>
+            </>
+          )}
         </h3>
         <button
           type="button"
