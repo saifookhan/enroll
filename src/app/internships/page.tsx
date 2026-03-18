@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import {
   type Internship,
+  internshipStatusLabelKey,
   normalizeInternshipList,
 } from "./InternshipsClassClient";
 
@@ -105,7 +106,11 @@ export default function InternshipsPage() {
                           {item.companyProgram || "—"}
                         </td>
                         <td className="px-6 py-3 text-sm text-zinc-700 dark:text-zinc-300">
-                          {item.status || "—"}
+                          {item.status
+                            ? internshipStatusLabelKey(item.status)
+                              ? t(internshipStatusLabelKey(item.status) as string)
+                              : item.status
+                            : "—"}
                         </td>
                       </tr>
                     ))
@@ -162,7 +167,11 @@ export default function InternshipsPage() {
                           {item.companyProgram || "—"}
                         </td>
                         <td className="px-6 py-3 text-sm text-zinc-700 dark:text-zinc-300">
-                          {item.status || "—"}
+                          {item.status
+                            ? internshipStatusLabelKey(item.status)
+                              ? t(internshipStatusLabelKey(item.status) as string)
+                              : item.status
+                            : "—"}
                         </td>
                       </tr>
                     ))

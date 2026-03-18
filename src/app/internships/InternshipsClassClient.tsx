@@ -4,7 +4,19 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 
-const STATUS_OPTIONS = ["", "Enrolled", "Pending", "Withdrawn", "Completed"];
+const STATUS_OPTIONS = ["", "Enrolled", "Pending", "Withdrawn", "Completed", "Closed"] as const;
+
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  Enrolled: "statusEnrolled",
+  Pending: "statusPending",
+  Withdrawn: "statusWithdrawn",
+  Completed: "statusCompleted",
+  Closed: "statusClosed",
+};
+
+export function internshipStatusLabelKey(status: string) {
+  return STATUS_LABEL_KEYS[status];
+}
 
 export type Internship = {
   id: string;
@@ -128,7 +140,7 @@ export default function InternshipsClassClient({
           <option value="">{t("status")}</option>
           {STATUS_OPTIONS.filter((s) => s).map((s) => (
             <option key={s} value={s}>
-              {s}
+              {t(internshipStatusLabelKey(s) ?? "status")}
             </option>
           ))}
         </select>
@@ -182,7 +194,11 @@ export default function InternshipsClassClient({
                     {item.companyProgram || "—"}
                   </td>
                   <td className="px-6 py-3 text-sm text-zinc-700 dark:text-zinc-300">
-                    {item.status || "—"}
+                    {item.status
+                      ? internshipStatusLabelKey(item.status)
+                        ? t(internshipStatusLabelKey(item.status) as string)
+                        : item.status
+                      : "—"}
                   </td>
                   <td className="px-6 py-3">
                     <button
