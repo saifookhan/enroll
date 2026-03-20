@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const STATUS_OPTIONS = ["", "Enrolled", "Pending", "Withdrawn", "Completed", "Closed"] as const;
+const DEFAULT_CLASS_SIZE = 20;
 
 const STATUS_LABEL_KEYS: Record<string, string> = {
   Enrolled: "statusEnrolled",
@@ -29,19 +30,34 @@ function uid() {
   return Math.random().toString(36).slice(2);
 }
 
+function emptyInternship(): Internship {
+  return { id: uid(), nameSurname: "", companyProgram: "", status: "" };
+}
+
+function isInternshipEmpty(i: Internship) {
+  return !i.nameSurname.trim() && !i.companyProgram.trim() && !i.status.trim();
+}
+
+function ensureMinInternships(list: Internship[]) {
+  const next = [...list];
+  while (next.length < DEFAULT_CLASS_SIZE) next.push(emptyInternship());
+  return next;
+}
+
 export function normalizeInternshipList(raw: unknown): Internship[] {
   if (!Array.isArray(raw)) return [];
-  return raw.map((r: Record<string, unknown>) => ({
+  return ensureMinInternships(raw.map((r: Record<string, unknown>) => ({
     id: String(r?.id ?? uid()),
     nameSurname: String(r?.nameSurname ?? r?.position ?? ""),
     companyProgram: String(r?.companyProgram ?? ""),
     status: String(r?.status ?? ""),
-  }));
+  })));
 }
 
 type Props = {
   dataKey: string;
   titleKey: string;
+  title?: string;
   descriptionKey: string;
   emptyMessageKey: string;
 };
@@ -49,24 +65,28 @@ type Props = {
 export default function InternshipsClassClient({
   dataKey,
   titleKey,
+  title,
   descriptionKey,
   emptyMessageKey,
 }: Props) {
   const { user } = useAuth();
   const { t } = useLanguage();
-  const [list, setList] = useState<Internship[]>([]);
+  const [list, setList] = useState<Internship[]>(ensureMinInternships([]));
   const [nameSurname, setNameSurname] = useState("");
   const [companyProgram, setCompanyProgram] = useState("");
   const [status, setStatus] = useState("");
 
   useEffect(() => {
-    if (!user?.token) return;
+    if (!user?.token) {
+      setList(ensureMinInternships([]));
+      return;
+    }
     fetch("/api/user/data/" + encodeURIComponent(dataKey), {
       headers: { Authorization: "Bearer " + user.token },
     })
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => setList(normalizeInternshipList(data)))
-      .catch(() => setList([]));
+      .catch(() => setList(ensureMinInternships([])));
   }, [dataKey, user?.userId, user?.token]);
 
   const persist = useCallback(
@@ -92,7 +112,14 @@ export default function InternshipsClassClient({
       companyProgram: companyProgram.trim(),
       status: status.trim(),
     };
-    persist([...list, newItem]);
+    const emptyIndex = list.findIndex((i) => isInternshipEmpty(i));
+    if (emptyIndex >= 0) {
+      const next = [...list];
+      next[emptyIndex] = { ...next[emptyIndex], ...newItem, id: next[emptyIndex].id };
+      persist(next);
+    } else {
+      persist([...list, newItem]);
+    }
     setNameSurname("");
     setCompanyProgram("");
     setStatus("");
@@ -100,7 +127,23 @@ export default function InternshipsClassClient({
 
   const removeOne = useCallback(
     (id: string) => {
-      persist(list.filter((i) => i.id !== id));
+      if (list.length > DEFAULT_CLASS_SIZE) {
+        persist(list.filter((i) => i.id !== id));
+        return;
+      }
+      persist(
+        list.map((i) =>
+          i.id === id ? { ...i, nameSurname: "", companyProgram: "", status: "" } : i
+        )
+      );
+    },
+    [list, persist]
+  );
+
+  const updateItem = useCallback(
+    (id: string, patch: Partial<Omit<Internship, "id">>) => {
+      const next = list.map((i) => (i.id === id ? { ...i, ...patch } : i));
+      persist(next);
     },
     [list, persist]
   );
@@ -108,7 +151,7 @@ export default function InternshipsClassClient({
   return (
     <>
       <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
-        {t(titleKey)}
+        {title?.trim() || t(titleKey)}
       </h2>
       <p className="mt-2 text-zinc-600 dark:text-zinc-400">
         {t(descriptionKey)}
@@ -187,18 +230,46 @@ export default function InternshipsClassClient({
             ) : (
               list.map((item) => (
                 <tr key={item.id}>
-                  <td className="px-6 py-3 text-sm text-zinc-900 dark:text-zinc-50">
-                    {item.nameSurname || "—"}
+                  <td className="px-6 py-2 align-middle">
+                    <input
+                      type="text"
+                      value={item.nameSurname}
+                      onChange={(e) =>
+                        updateItem(item.id, { nameSurname: e.target.value })
+                      }
+                      className="w-full min-w-[8rem] rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
+                      placeholder={t("nameSurname")}
+                      aria-label={t("nameSurname")}
+                    />
                   </td>
-                  <td className="px-6 py-3 text-sm text-zinc-700 dark:text-zinc-300">
-                    {item.companyProgram || "—"}
+                  <td className="px-6 py-2 align-middle">
+                    <input
+                      type="text"
+                      value={item.companyProgram}
+                      onChange={(e) =>
+                        updateItem(item.id, { companyProgram: e.target.value })
+                      }
+                      className="w-full min-w-[8rem] rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-700 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                      placeholder={t("companyProgram")}
+                      aria-label={t("companyProgram")}
+                    />
                   </td>
-                  <td className="px-6 py-3 text-sm text-zinc-700 dark:text-zinc-300">
-                    {item.status
-                      ? internshipStatusLabelKey(item.status)
-                        ? t(internshipStatusLabelKey(item.status) as string)
-                        : item.status
-                      : "—"}
+                  <td className="px-6 py-2 align-middle">
+                    <select
+                      value={item.status}
+                      onChange={(e) =>
+                        updateItem(item.id, { status: e.target.value })
+                      }
+                      className="w-full min-w-[8rem] rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-700 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                      aria-label={t("status")}
+                    >
+                      <option value="">—</option>
+                      {STATUS_OPTIONS.filter((s) => s).map((s) => (
+                        <option key={s} value={s}>
+                          {t(internshipStatusLabelKey(s) ?? "status")}
+                        </option>
+                      ))}
+                    </select>
                   </td>
                   <td className="px-6 py-3">
                     <button

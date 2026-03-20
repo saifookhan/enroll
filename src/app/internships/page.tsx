@@ -15,12 +15,16 @@ export default function InternshipsPage() {
   const { user } = useAuth();
   const [class1, setClass1] = useState<Internship[]>([]);
   const [class2, setClass2] = useState<Internship[]>([]);
+  const [class1Name, setClass1Name] = useState("");
+  const [class2Name, setClass2Name] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user?.token) {
       setClass1([]);
       setClass2([]);
+      setClass1Name("");
+      setClass2Name("");
       setLoading(false);
       return;
     }
@@ -32,17 +36,44 @@ export default function InternshipsPage() {
       fetch("/api/user/data/internships-class-2", {
         headers: { Authorization: "Bearer " + token },
       }).then((r) => (r.ok ? r.json() : [])),
+      fetch("/api/user/data/internships-class-names", {
+        headers: { Authorization: "Bearer " + token },
+      }).then((r) => (r.ok ? r.json() : null)),
     ])
-      .then(([data1, data2]) => {
+      .then(([data1, data2, namesData]) => {
         setClass1(normalizeInternshipList(data1));
         setClass2(normalizeInternshipList(data2));
+        setClass1Name(
+          namesData && typeof namesData.class1 === "string"
+            ? namesData.class1.trim()
+            : ""
+        );
+        setClass2Name(
+          namesData && typeof namesData.class2 === "string"
+            ? namesData.class2.trim()
+            : ""
+        );
       })
       .catch(() => {
         setClass1([]);
         setClass2([]);
+        setClass1Name("");
+        setClass2Name("");
       })
       .finally(() => setLoading(false));
   }, [user?.userId, user?.token]);
+
+  const persistClassNames = (nextClass1: string, nextClass2: string) => {
+    if (!user?.token) return;
+    fetch("/api/user/data/internships-class-names", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + user.token,
+      },
+      body: JSON.stringify({ class1: nextClass1.trim(), class2: nextClass2.trim() }),
+    }).catch(() => {});
+  };
 
   return (
     <>
@@ -62,7 +93,19 @@ export default function InternshipsPage() {
           <section>
             <div className="flex flex-wrap items-center justify-between gap-4">
               <h3 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
-                {t("class1")}
+                <input
+                  type="text"
+                  value={class1Name}
+                  onChange={(e) => setClass1Name(e.target.value)}
+                  onBlur={() => persistClassNames(class1Name, class2Name)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      (e.target as HTMLInputElement).blur();
+                    }
+                  }}
+                  className="rounded border border-zinc-300 bg-white px-2 py-1 text-xl font-semibold text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
+                  placeholder={t("class1")}
+                />
               </h3>
               <Link
                 href="/internships/class-1"
@@ -123,7 +166,19 @@ export default function InternshipsPage() {
           <section>
             <div className="flex flex-wrap items-center justify-between gap-4">
               <h3 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
-                {t("class2")}
+                <input
+                  type="text"
+                  value={class2Name}
+                  onChange={(e) => setClass2Name(e.target.value)}
+                  onBlur={() => persistClassNames(class1Name, class2Name)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      (e.target as HTMLInputElement).blur();
+                    }
+                  }}
+                  className="rounded border border-zinc-300 bg-white px-2 py-1 text-xl font-semibold text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
+                  placeholder={t("class2")}
+                />
               </h3>
               <Link
                 href="/internships/class-2"

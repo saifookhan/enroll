@@ -220,6 +220,16 @@ export default function InterviewMonthClient({
     [interviews, persist]
   );
 
+  const updateInterview = useCallback(
+    (id: string, patch: Partial<Pick<Interview, "applicant" | "dateTime">>) => {
+      const next = interviews.map((i) =>
+        i.id === id ? { ...i, ...patch } : i
+      );
+      persist(next);
+    },
+    [interviews, persist]
+  );
+
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -266,7 +276,7 @@ export default function InterviewMonthClient({
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">Status</label>
+            <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">{t("status")}</label>
             <div className="mt-1">
               <StatusDropdown value={status} onChange={setStatus} size="md" />
             </div>
@@ -307,8 +317,30 @@ export default function InterviewMonthClient({
             ) : (
               interviews.map((i) => (
                 <tr key={i.id}>
-                  <td className="px-6 py-3 text-sm text-zinc-900 dark:text-zinc-50">{i.applicant || "—"}</td>
-                  <td className="px-6 py-3 text-sm text-zinc-700 dark:text-zinc-300">{i.dateTime || "—"}</td>
+                  <td className="px-6 py-2 align-middle">
+                    <input
+                      type="text"
+                      value={i.applicant}
+                      onChange={(e) =>
+                        updateInterview(i.id, { applicant: e.target.value })
+                      }
+                      className="w-full min-w-[8rem] rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
+                      placeholder={t("applicant")}
+                      aria-label={t("applicant")}
+                    />
+                  </td>
+                  <td className="px-6 py-2 align-middle">
+                    <input
+                      type="text"
+                      value={i.dateTime}
+                      onChange={(e) =>
+                        updateInterview(i.id, { dateTime: e.target.value })
+                      }
+                      className="w-full min-w-[8rem] rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-700 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                      placeholder={t("dateTime")}
+                      aria-label={t("dateTime")}
+                    />
+                  </td>
                   <td className="px-6 py-3 text-sm text-zinc-700 dark:text-zinc-300">
                     <StatusDropdown
                       value={INTERVIEW_STATUSES.some((s) => s.value === i.status) ? i.status : INTERVIEW_STATUSES[1].value}

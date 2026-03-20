@@ -10,6 +10,7 @@ const API_KEY_CLASSES = "classes";
 const API_KEY_VIEW = "view";
 const MIN_YEAR = 2027;
 const MAX_YEAR = 2032;
+const DEFAULT_CLASS_SIZE = 20;
 
 const GRADE_OPTIONS = ["", "A+", "A", "A-"];
 
@@ -80,6 +81,27 @@ function uid() {
   return Math.random().toString(36).slice(2);
 }
 
+function emptyStudent(): Student {
+  return {
+    id: uid(),
+    student: "",
+    grade: "",
+    origin: "",
+    status: "",
+    gender: "",
+  };
+}
+
+function isStudentEmpty(s: Student) {
+  return !s.student.trim() && !s.grade.trim() && !s.origin.trim() && !s.status.trim() && !s.gender.trim();
+}
+
+function ensureMinStudents(students: Student[]) {
+  const next = [...students];
+  while (next.length < DEFAULT_CLASS_SIZE) next.push(emptyStudent());
+  return next;
+}
+
 function loadClasses(): ClassItem[] {
   if (typeof window === "undefined") return [];
   try {
@@ -101,7 +123,7 @@ function loadClasses(): ClassItem[] {
             gender: String(s.gender ?? ""),
           }))
         : [],
-    }));
+    })).map((c) => ({ ...c, students: ensureMinStudents(c.students) }));
   } catch {
     return [];
   }
@@ -134,7 +156,7 @@ function normalizeClasses(raw: unknown): ClassItem[] {
           gender: String(s?.gender ?? ""),
         }))
       : [],
-  }));
+  })).map((c) => ({ ...c, students: ensureMinStudents(c.students) }));
 }
 
 export default function EnrollmentsPage() {
@@ -214,31 +236,31 @@ export default function EnrollmentsPage() {
     }
     const next = [
       ...classes,
-      { id: uid(), year: yearToAdd, name: "", students: [] },
+      { id: uid(), year: yearToAdd, name: "", students: ensureMinStudents([]) },
     ].sort((a, b) => b.year - a.year);
     persist(next);
   }, [yearToAdd, classes, persist]);
 
   const addStudent = useCallback(
     (classId: string, student: string, grade: string, origin: string, status: string, gender: string) => {
-      const next = classes.map((c) =>
-        c.id === classId
-          ? {
-              ...c,
-              students: [
-                ...c.students,
-                {
-                  id: uid(),
-                  student: student.trim(),
-                  grade: grade.trim(),
-                  origin: origin.trim(),
-                  status: status.trim(),
-                  gender: gender.trim(),
-                },
-              ],
-            }
-          : c
-      );
+      const next = classes.map((c) => {
+        if (c.id !== classId) return c;
+        const payload: Student = {
+          id: uid(),
+          student: student.trim(),
+          grade: grade.trim(),
+          origin: origin.trim(),
+          status: status.trim(),
+          gender: gender.trim(),
+        };
+        const emptyIndex = c.students.findIndex((s) => isStudentEmpty(s));
+        if (emptyIndex >= 0) {
+          const students = [...c.students];
+          students[emptyIndex] = { ...students[emptyIndex], ...payload, id: students[emptyIndex].id };
+          return { ...c, students };
+        }
+        return { ...c, students: [...c.students, payload] };
+      });
       persist(next);
     },
     [classes, persist]
@@ -246,9 +268,37 @@ export default function EnrollmentsPage() {
 
   const removeStudent = useCallback(
     (classId: string, studentId: string) => {
+      const next = classes.map((c) => {
+        if (c.id !== classId) return c;
+        if (c.students.length > DEFAULT_CLASS_SIZE) {
+          return { ...c, students: c.students.filter((s) => s.id !== studentId) };
+        }
+        return {
+          ...c,
+          students: c.students.map((s) =>
+            s.id === studentId ? { ...s, student: "", grade: "", origin: "", status: "", gender: "" } : s
+          ),
+        };
+      });
+      persist(next);
+    },
+    [classes, persist]
+  );
+
+  const updateStudent = useCallback(
+    (
+      classId: string,
+      studentId: string,
+      patch: Partial<Pick<Student, "student" | "grade" | "origin" | "status" | "gender">>
+    ) => {
       const next = classes.map((c) =>
         c.id === classId
-          ? { ...c, students: c.students.filter((s) => s.id !== studentId) }
+          ? {
+              ...c,
+              students: c.students.map((s) =>
+                s.id === studentId ? { ...s, ...patch } : s
+              ),
+            }
           : c
       );
       persist(next);
@@ -365,6 +415,7 @@ export default function EnrollmentsPage() {
                 classItem={c}
                 onAddStudent={addStudent}
                 onRemoveStudent={removeStudent}
+                onUpdateStudent={updateStudent}
                 onRemoveClass={removeClass}
                 onRenameClass={renameClass}
               />
@@ -376,6 +427,7 @@ export default function EnrollmentsPage() {
                 classItem={c}
                 onAddStudent={addStudent}
                 onRemoveStudent={removeStudent}
+                onUpdateStudent={updateStudent}
                 onRemoveClass={removeClass}
                 onRenameClass={renameClass}
               />
@@ -387,16 +439,133 @@ export default function EnrollmentsPage() {
   );
 }
 
+function EditableStudentRow({
+  classId,
+  student: s,
+  compact,
+  onUpdateStudent,
+  onRemoveStudent,
+}: {
+  classId: string;
+  student: Student;
+  compact: boolean;
+  onUpdateStudent: (
+    classId: string,
+    studentId: string,
+    patch: Partial<Pick<Student, "student" | "grade" | "origin" | "status" | "gender">>
+  ) => void;
+  onRemoveStudent: (classId: string, studentId: string) => void;
+}) {
+  const { t } = useLanguage();
+  const cellPad = compact ? "px-3 py-1.5" : "px-4 py-2";
+  const inputCl = compact
+    ? "w-full min-w-[4rem] rounded border border-zinc-300 bg-white px-1.5 py-1 text-xs dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
+    : "w-full min-w-[5rem] rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50";
+  const selectCl = inputCl;
+
+  return (
+    <tr>
+      <td className={`${cellPad}`}>
+        <select
+          value={s.gender}
+          onChange={(e) => onUpdateStudent(classId, s.id, { gender: e.target.value })}
+          className={selectCl}
+          aria-label={t("gender")}
+        >
+          <option value="">—</option>
+          {GENDER_OPTIONS.filter((g) => g).map((g) => (
+            <option key={g} value={g}>
+              {t(g.toLowerCase())}
+            </option>
+          ))}
+        </select>
+      </td>
+      <td className={`${cellPad}`}>
+        <input
+          type="text"
+          value={s.student}
+          onChange={(e) => onUpdateStudent(classId, s.id, { student: e.target.value })}
+          className={inputCl}
+          placeholder={t("student")}
+          aria-label={t("student")}
+        />
+      </td>
+      <td className={`${cellPad}`}>
+        <span className="inline-flex w-full items-center gap-1.5">
+          <GradeDot grade={s.grade} size={compact ? "sm" : "md"} />
+          <select
+            value={s.grade}
+            onChange={(e) => onUpdateStudent(classId, s.id, { grade: e.target.value })}
+            className={`${selectCl} flex-1`}
+            aria-label={t("grade")}
+          >
+            <option value="">—</option>
+            {GRADE_OPTIONS.filter((g) => g).map((g) => (
+              <option key={g} value={g}>
+                {g}
+              </option>
+            ))}
+          </select>
+        </span>
+      </td>
+      <td className={`${cellPad}`}>
+        <input
+          type="text"
+          value={s.origin}
+          onChange={(e) => onUpdateStudent(classId, s.id, { origin: e.target.value })}
+          className={inputCl}
+          placeholder={t("origin")}
+          aria-label={t("origin")}
+        />
+      </td>
+      <td className={`${cellPad}`}>
+        <span className="inline-flex w-full items-center gap-1.5">
+          <StatusDotEnroll status={s.status} size={compact ? "sm" : "md"} />
+          <select
+            value={s.status}
+            onChange={(e) => onUpdateStudent(classId, s.id, { status: e.target.value })}
+            className={`${selectCl} flex-1`}
+            aria-label={t("status")}
+          >
+            <option value="">—</option>
+            {STATUS_OPTIONS.filter((st) => st).map((st) => (
+              <option key={st} value={st}>
+                {st}
+              </option>
+            ))}
+          </select>
+        </span>
+      </td>
+      <td className={cellPad}>
+        <button
+          type="button"
+          onClick={() => onRemoveStudent(classId, s.id)}
+          className="text-zinc-400 hover:text-red-600 dark:hover:text-red-400"
+          aria-label="Remove"
+        >
+          ×
+        </button>
+      </td>
+    </tr>
+  );
+}
+
 function ClassBlockCompact({
   classItem,
   onAddStudent,
   onRemoveStudent,
+  onUpdateStudent,
   onRemoveClass,
   onRenameClass,
 }: {
   classItem: ClassItem;
   onAddStudent: (classId: string, student: string, grade: string, origin: string, status: string, gender: string) => void;
   onRemoveStudent: (classId: string, studentId: string) => void;
+  onUpdateStudent: (
+    classId: string,
+    studentId: string,
+    patch: Partial<Pick<Student, "student" | "grade" | "origin" | "status" | "gender">>
+  ) => void;
   onRemoveClass: (classId: string) => void;
   onRenameClass: (classId: string, name: string) => void;
 }) {
@@ -496,26 +665,14 @@ function ClassBlockCompact({
                   </tr>
                 ) : (
                   classItem.students.map((s) => (
-                    <tr key={s.id}>
-                      <td className="px-3 py-1.5 text-zinc-700 dark:text-zinc-300">{s.gender ? t(s.gender.toLowerCase()) : "—"}</td>
-                      <td className="px-3 py-1.5 text-zinc-900 dark:text-zinc-50">{s.student || "—"}</td>
-                      <td className="px-3 py-1.5">
-                        <span className="inline-flex items-center gap-1.5 text-zinc-700 dark:text-zinc-300">
-                          <GradeDot grade={s.grade} size="sm" />
-                          {s.grade || "—"}
-                        </span>
-                      </td>
-                      <td className="px-3 py-1.5 text-zinc-700 dark:text-zinc-300">{s.origin || "—"}</td>
-                      <td className="px-3 py-1.5">
-                        <span className="inline-flex items-center gap-1.5 text-zinc-700 dark:text-zinc-300">
-                          <StatusDotEnroll status={s.status} size="sm" />
-                          {s.status || "—"}
-                        </span>
-                      </td>
-                      <td className="px-3 py-1.5">
-                        <button type="button" onClick={() => onRemoveStudent(classItem.id, s.id)} className="text-zinc-400 hover:text-red-600 dark:hover:text-red-400" aria-label="Remove">×</button>
-                      </td>
-                    </tr>
+                    <EditableStudentRow
+                      key={s.id}
+                      classId={classItem.id}
+                      student={s}
+                      compact
+                      onUpdateStudent={onUpdateStudent}
+                      onRemoveStudent={onRemoveStudent}
+                    />
                   ))
                 )}
               </tbody>
@@ -557,12 +714,18 @@ function ClassBlock({
   classItem,
   onAddStudent,
   onRemoveStudent,
+  onUpdateStudent,
   onRemoveClass,
   onRenameClass,
 }: {
   classItem: ClassItem;
   onAddStudent: (classId: string, student: string, grade: string, origin: string, status: string, gender: string) => void;
   onRemoveStudent: (classId: string, studentId: string) => void;
+  onUpdateStudent: (
+    classId: string,
+    studentId: string,
+    patch: Partial<Pick<Student, "student" | "grade" | "origin" | "status" | "gender">>
+  ) => void;
   onRemoveClass: (classId: string) => void;
   onRenameClass: (classId: string, name: string) => void;
 }) {
@@ -670,33 +833,14 @@ function ClassBlock({
                 </tr>
               ) : (
                 classItem.students.map((s) => (
-                  <tr key={s.id}>
-                    <td className="px-4 py-2 text-sm text-zinc-700 dark:text-zinc-300">{s.gender ? t(s.gender.toLowerCase()) : "—"}</td>
-                    <td className="px-4 py-2 text-sm text-zinc-900 dark:text-zinc-50">{s.student || "—"}</td>
-                    <td className="px-4 py-2 text-sm">
-                      <span className="inline-flex items-center gap-2 text-zinc-700 dark:text-zinc-300">
-                        <GradeDot grade={s.grade} />
-                        {s.grade || "—"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2 text-sm text-zinc-700 dark:text-zinc-300">{s.origin || "—"}</td>
-                    <td className="px-4 py-2 text-sm">
-                      <span className="inline-flex items-center gap-2 text-zinc-700 dark:text-zinc-300">
-                        <StatusDotEnroll status={s.status} />
-                        {s.status || "—"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2">
-                      <button
-                        type="button"
-                        onClick={() => onRemoveStudent(classItem.id, s.id)}
-                        className="text-zinc-400 hover:text-red-600 dark:hover:text-red-400"
-                        aria-label="Remove student"
-                      >
-                        ×
-                      </button>
-                    </td>
-                  </tr>
+                  <EditableStudentRow
+                    key={s.id}
+                    classId={classItem.id}
+                    student={s}
+                    compact={false}
+                    onUpdateStudent={onUpdateStudent}
+                    onRemoveStudent={onRemoveStudent}
+                  />
                 ))
               )}
             </tbody>
