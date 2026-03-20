@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import NameSortToggle from "@/components/NameSortToggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { compareByNameSort, type NameSortMode } from "@/lib/nameSort";
 
 const STORAGE_KEY = "enroll-classes";
 const VIEW_KEY = "enroll-view";
@@ -34,16 +36,42 @@ function GradeDot({ grade, size = "md" }: { grade: string; size?: "sm" | "md" })
   );
 }
 
-const STATUS_OPTIONS = ["", "Enrolled", "Pending", "Withdrawn", "Completed"];
+/** Valori salvati; etichette in translations (enrollmentFull, …). */
+const ENROLLMENT_STATUS_VALUES = [
+  "enrollmentFull",
+  "enrollmentInProgress",
+  "enrollmentReserved",
+  "enrollmentRegulation",
+  "enrollmentPayment",
+] as const;
+
+const STATUS_OPTIONS = ["", ...ENROLLMENT_STATUS_VALUES] as const;
+
+const LEGACY_ENROLLMENT_STATUS: Record<string, string> = {
+  Enrolled: "enrollmentFull",
+  Pending: "enrollmentReserved",
+  Withdrawn: "enrollmentPayment",
+  Completed: "enrollmentFull",
+};
+
+function normalizeEnrollmentStatus(raw: string): string {
+  const s = raw.trim();
+  if (!s) return "";
+  if (LEGACY_ENROLLMENT_STATUS[s]) return LEGACY_ENROLLMENT_STATUS[s];
+  if ((ENROLLMENT_STATUS_VALUES as readonly string[]).includes(s)) return s;
+  return "";
+}
 
 const STATUS_DOT_COLORS: Record<string, string> = {
-  Enrolled: "bg-emerald-500",
-  Pending: "bg-amber-400",
-  Withdrawn: "bg-red-500",
-  Completed: "bg-zinc-400 dark:bg-zinc-500",
+  enrollmentFull: "bg-emerald-500",
+  enrollmentInProgress: "bg-violet-500",
+  enrollmentReserved: "bg-sky-500",
+  enrollmentRegulation: "bg-orange-500",
+  enrollmentPayment: "bg-red-500",
 };
 
 function StatusDotEnroll({ status, size = "md" }: { status: string; size?: "sm" | "md" }) {
+  const { t } = useLanguage();
   const s = status.trim();
   const bg = STATUS_DOT_COLORS[s];
   const sizeClass = size === "sm" ? "h-2.5 w-2.5" : "h-3.5 w-3.5";
@@ -51,7 +79,7 @@ function StatusDotEnroll({ status, size = "md" }: { status: string; size?: "sm" 
   return (
     <span
       className={`inline-block shrink-0 rounded-full ${sizeClass} ${bg}`}
-      title={s}
+      title={s ? t(s) : ""}
       aria-hidden
     />
   );
@@ -119,7 +147,7 @@ function loadClasses(): ClassItem[] {
             student: String(s.student ?? ""),
             grade: String(s.grade ?? ""),
             origin: String(s.origin ?? ""),
-            status: String(s.status ?? ""),
+            status: normalizeEnrollmentStatus(String(s.status ?? "")),
             gender: String(s.gender ?? ""),
           }))
         : [],
@@ -152,7 +180,7 @@ function normalizeClasses(raw: unknown): ClassItem[] {
           student: String(s?.student ?? ""),
           grade: String(s?.grade ?? ""),
           origin: String(s?.origin ?? ""),
-          status: String(s?.status ?? ""),
+          status: normalizeEnrollmentStatus(String(s?.status ?? "")),
           gender: String(s?.gender ?? ""),
         }))
       : [],
@@ -524,13 +552,13 @@ function EditableStudentRow({
           <select
             value={s.status}
             onChange={(e) => onUpdateStudent(classId, s.id, { status: e.target.value })}
-            className={`${selectCl} flex-1`}
+            className={`${selectCl} min-w-[12rem] flex-1`}
             aria-label={t("status")}
           >
             <option value="">—</option>
             {STATUS_OPTIONS.filter((st) => st).map((st) => (
               <option key={st} value={st}>
-                {st}
+                {t(st)}
               </option>
             ))}
           </select>
@@ -569,7 +597,7 @@ function ClassBlockCompact({
   onRemoveClass: (classId: string) => void;
   onRenameClass: (classId: string, name: string) => void;
 }) {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const [open, setOpen] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(classItem.name || "");
@@ -578,7 +606,16 @@ function ClassBlockCompact({
   const [origin, setOrigin] = useState("");
   const [status, setStatus] = useState("");
   const [gender, setGender] = useState("");
+  const [nameSort, setNameSort] = useState<NameSortMode>("firstName");
   const displayName = (classItem.name && classItem.name.trim()) ? classItem.name.trim() : `${t("class")} ${classItem.year}`;
+
+  const sortedStudents = useMemo(
+    () =>
+      [...classItem.students].sort((a, b) =>
+        compareByNameSort(a.student, b.student, nameSort, locale)
+      ),
+    [classItem.students, nameSort, locale]
+  );
 
   const handleAdd = () => {
     if (!student.trim()) return;
@@ -646,6 +683,11 @@ function ClassBlockCompact({
       </button>
       {open && (
         <div className="border-t border-zinc-200 dark:border-zinc-800 p-4">
+          <NameSortToggle
+            value={nameSort}
+            onChange={setNameSort}
+            className="mb-2 justify-end sm:justify-start"
+          />
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800 text-sm">
               <thead>
@@ -664,7 +706,7 @@ function ClassBlockCompact({
                     <td colSpan={6} className="px-3 py-4 text-center text-zinc-500 dark:text-zinc-400">{t("noStudentsYet")}</td>
                   </tr>
                 ) : (
-                  classItem.students.map((s) => (
+                  sortedStudents.map((s) => (
                     <EditableStudentRow
                       key={s.id}
                       classId={classItem.id}
@@ -696,7 +738,7 @@ function ClassBlockCompact({
             <select value={status} onChange={(e) => setStatus(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAdd()} className="rounded border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 min-w-[100px]">
               <option value="">{t("status")}</option>
               {STATUS_OPTIONS.filter((s) => s).map((s) => (
-                <option key={s} value={s}>{s}</option>
+                <option key={s} value={s}>{t(s)}</option>
               ))}
             </select>
             <button type="button" onClick={handleAdd} className="rounded bg-zinc-800 px-2 py-1.5 text-xs font-medium text-white dark:bg-zinc-200 dark:text-zinc-900">{t("addStudent")}</button>
@@ -729,7 +771,7 @@ function ClassBlock({
   onRemoveClass: (classId: string) => void;
   onRenameClass: (classId: string, name: string) => void;
 }) {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(classItem.name || "");
   const [student, setStudent] = useState("");
@@ -737,7 +779,16 @@ function ClassBlock({
   const [origin, setOrigin] = useState("");
   const [status, setStatus] = useState("");
   const [gender, setGender] = useState("");
+  const [nameSort, setNameSort] = useState<NameSortMode>("firstName");
   const displayName = (classItem.name && classItem.name.trim()) ? classItem.name.trim() : `${t("class")} ${classItem.year}`;
+
+  const sortedStudents = useMemo(
+    () =>
+      [...classItem.students].sort((a, b) =>
+        compareByNameSort(a.student, b.student, nameSort, locale)
+      ),
+    [classItem.students, nameSort, locale]
+  );
 
   const handleAdd = () => {
     if (!student.trim()) return;
@@ -802,6 +853,11 @@ function ClassBlock({
         </button>
       </div>
       <div className="p-4">
+        <NameSortToggle
+          value={nameSort}
+          onChange={setNameSort}
+          className="mb-3 justify-end sm:justify-start"
+        />
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
             <thead>
@@ -832,7 +888,7 @@ function ClassBlock({
                   </td>
                 </tr>
               ) : (
-                classItem.students.map((s) => (
+                sortedStudents.map((s) => (
                   <EditableStudentRow
                     key={s.id}
                     classId={classItem.id}
@@ -893,7 +949,7 @@ function ClassBlock({
           >
             <option value="">{t("status")}</option>
             {STATUS_OPTIONS.filter((s) => s).map((s) => (
-              <option key={s} value={s}>{s}</option>
+              <option key={s} value={s}>{t(s)}</option>
             ))}
           </select>
           <button

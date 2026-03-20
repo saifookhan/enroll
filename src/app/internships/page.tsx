@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import NameSortToggle from "@/components/NameSortToggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { compareByNameSort, type NameSortMode } from "@/lib/nameSort";
 import {
   type Internship,
   internshipStatusLabelKey,
@@ -11,13 +13,30 @@ import {
 } from "./InternshipsClassClient";
 
 export default function InternshipsPage() {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const { user } = useAuth();
   const [class1, setClass1] = useState<Internship[]>([]);
   const [class2, setClass2] = useState<Internship[]>([]);
   const [class1Name, setClass1Name] = useState("");
   const [class2Name, setClass2Name] = useState("");
   const [loading, setLoading] = useState(true);
+  const [sortClass1, setSortClass1] = useState<NameSortMode>("firstName");
+  const [sortClass2, setSortClass2] = useState<NameSortMode>("firstName");
+
+  const sortedClass1 = useMemo(
+    () =>
+      [...class1].sort((a, b) =>
+        compareByNameSort(a.nameSurname, b.nameSurname, sortClass1, locale)
+      ),
+    [class1, sortClass1, locale]
+  );
+  const sortedClass2 = useMemo(
+    () =>
+      [...class2].sort((a, b) =>
+        compareByNameSort(a.nameSurname, b.nameSurname, sortClass2, locale)
+      ),
+    [class2, sortClass2, locale]
+  );
 
   useEffect(() => {
     if (!user?.token) {
@@ -114,7 +133,12 @@ export default function InternshipsPage() {
                 {t("manage")} →
               </Link>
             </div>
-            <div className="mt-4 overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+            <NameSortToggle
+              value={sortClass1}
+              onChange={setSortClass1}
+              className="mt-2 justify-end sm:justify-start"
+            />
+            <div className="mt-2 overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
               <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
                 <thead>
                   <tr>
@@ -140,7 +164,7 @@ export default function InternshipsPage() {
                       </td>
                     </tr>
                   ) : (
-                    class1.map((item) => (
+                    sortedClass1.map((item) => (
                       <tr key={item.id}>
                         <td className="px-6 py-3 text-sm text-zinc-900 dark:text-zinc-50">
                           {item.nameSurname || "—"}
@@ -187,7 +211,12 @@ export default function InternshipsPage() {
                 {t("manage")} →
               </Link>
             </div>
-            <div className="mt-4 overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+            <NameSortToggle
+              value={sortClass2}
+              onChange={setSortClass2}
+              className="mt-2 justify-end sm:justify-start"
+            />
+            <div className="mt-2 overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
               <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
                 <thead>
                   <tr>
@@ -213,7 +242,7 @@ export default function InternshipsPage() {
                       </td>
                     </tr>
                   ) : (
-                    class2.map((item) => (
+                    sortedClass2.map((item) => (
                       <tr key={item.id}>
                         <td className="px-6 py-3 text-sm text-zinc-900 dark:text-zinc-50">
                           {item.nameSurname || "—"}

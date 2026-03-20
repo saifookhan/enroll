@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import NameSortToggle from "@/components/NameSortToggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { compareByNameSort, type NameSortMode } from "@/lib/nameSort";
 
 const STORAGE_PREFIX = "enroll-interviews-";
 const API_KEY_PREFIX = "interviews-";
@@ -147,14 +149,23 @@ export default function InterviewMonthClient({
   label: string;
 }) {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const [interviews, setInterviews] = useState<Interview[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [applicant, setApplicant] = useState("");
   const [dateTime, setDateTime] = useState("");
   const [status, setStatus] = useState(INTERVIEW_STATUSES[1].value);
+  const [nameSort, setNameSort] = useState<NameSortMode>("firstName");
 
   const apiKey = API_KEY_PREFIX + month;
+
+  const sortedInterviews = useMemo(
+    () =>
+      [...interviews].sort((a, b) =>
+        compareByNameSort(a.applicant, b.applicant, nameSort, locale)
+      ),
+    [interviews, nameSort, locale]
+  );
 
   useEffect(() => {
     if (user?.token) {
@@ -291,7 +302,13 @@ export default function InterviewMonthClient({
         </div>
       )}
 
-      <div className="mt-8 overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+      <NameSortToggle
+        value={nameSort}
+        onChange={setNameSort}
+        className="mt-6 justify-end sm:justify-start"
+      />
+
+      <div className="mt-3 overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
         <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
           <thead>
             <tr>
@@ -315,7 +332,7 @@ export default function InterviewMonthClient({
                 </td>
               </tr>
             ) : (
-              interviews.map((i) => (
+              sortedInterviews.map((i) => (
                 <tr key={i.id}>
                   <td className="px-6 py-2 align-middle">
                     <input

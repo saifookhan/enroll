@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import NameSortToggle from "@/components/NameSortToggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { compareByNameSort, type NameSortMode } from "@/lib/nameSort";
 
 const STATUS_OPTIONS = ["", "Enrolled", "Pending", "Withdrawn", "Completed", "Closed"] as const;
 const DEFAULT_CLASS_SIZE = 20;
@@ -70,11 +72,20 @@ export default function InternshipsClassClient({
   emptyMessageKey,
 }: Props) {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const [list, setList] = useState<Internship[]>(ensureMinInternships([]));
   const [nameSurname, setNameSurname] = useState("");
   const [companyProgram, setCompanyProgram] = useState("");
   const [status, setStatus] = useState("");
+  const [nameSort, setNameSort] = useState<NameSortMode>("firstName");
+
+  const sortedList = useMemo(
+    () =>
+      [...list].sort((a, b) =>
+        compareByNameSort(a.nameSurname, b.nameSurname, nameSort, locale)
+      ),
+    [list, nameSort, locale]
+  );
 
   useEffect(() => {
     if (!user?.token) {
@@ -201,7 +212,13 @@ export default function InternshipsClassClient({
         </button>
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+      <NameSortToggle
+        value={nameSort}
+        onChange={setNameSort}
+        className="mt-4 justify-end sm:justify-start"
+      />
+
+      <div className="mt-3 overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
         <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
           <thead>
             <tr>
@@ -228,7 +245,7 @@ export default function InternshipsClassClient({
                 </td>
               </tr>
             ) : (
-              list.map((item) => (
+              sortedList.map((item) => (
                 <tr key={item.id}>
                   <td className="px-6 py-2 align-middle">
                     <input
