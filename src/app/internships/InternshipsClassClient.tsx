@@ -21,6 +21,30 @@ export function internshipStatusLabelKey(status: string) {
   return STATUS_LABEL_KEYS[status];
 }
 
+const INTERNSHIP_STATUS_DOT: Record<string, string> = {
+  Enrolled: "bg-emerald-500",
+  Pending: "bg-sky-500",
+  Withdrawn: "bg-orange-500",
+  Completed: "bg-teal-500",
+  Closed: "bg-red-500",
+};
+
+function InternshipStatusDot({ status, size = "md" }: { status: string; size?: "sm" | "md" }) {
+  const { t } = useLanguage();
+  const s = status.trim();
+  const bg = INTERNSHIP_STATUS_DOT[s];
+  const sizeClass = size === "sm" ? "h-2.5 w-2.5" : "h-3.5 w-3.5";
+  if (!bg) return null;
+  const labelKey = internshipStatusLabelKey(s);
+  return (
+    <span
+      className={`inline-block shrink-0 rounded-full ${sizeClass} ${bg}`}
+      title={labelKey ? t(labelKey) : s}
+      aria-hidden
+    />
+  );
+}
+
 export type Internship = {
   id: string;
   nameSurname: string;
@@ -185,19 +209,24 @@ export default function InternshipsClassClient({
           onKeyDown={(e) => e.key === "Enter" && addOne()}
           className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 dark:placeholder-zinc-500 min-w-[180px]"
         />
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && addOne()}
-          className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 min-w-[120px]"
-        >
-          <option value="">{t("status")}</option>
-          {STATUS_OPTIONS.filter((s) => s).map((s) => (
-            <option key={s} value={s}>
-              {t(internshipStatusLabelKey(s) ?? "status")}
-            </option>
-          ))}
-        </select>
+        <div className="relative min-w-[120px]">
+          <span className="pointer-events-none absolute left-2 top-1/2 z-10 -translate-y-1/2">
+            <InternshipStatusDot status={status} size="md" />
+          </span>
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addOne()}
+            className={`w-full rounded-md border border-zinc-300 bg-white py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${INTERNSHIP_STATUS_DOT[status.trim()] ? "pl-9 pr-3" : "px-3"}`}
+          >
+            <option value="">{t("status")}</option>
+            {STATUS_OPTIONS.filter((s) => s).map((s) => (
+              <option key={s} value={s}>
+                {t(internshipStatusLabelKey(s) ?? "status")}
+              </option>
+            ))}
+          </select>
+        </div>
         <button
           type="button"
           onClick={addOne}
@@ -222,6 +251,9 @@ export default function InternshipsClassClient({
         <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
           <thead>
             <tr>
+              <th className="px-3 py-3 text-center text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 w-12">
+                {t("rowIndex")}
+              </th>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                 {t("nameSurname")}
               </th>
@@ -238,15 +270,18 @@ export default function InternshipsClassClient({
             {list.length === 0 ? (
               <tr>
                 <td
-                  colSpan={4}
+                  colSpan={5}
                   className="px-6 py-12 text-center text-sm text-zinc-500 dark:text-zinc-400"
                 >
                   {t(emptyMessageKey)}
                 </td>
               </tr>
             ) : (
-              sortedList.map((item) => (
+              sortedList.map((item, idx) => (
                 <tr key={item.id}>
+                  <td className="px-3 py-2 text-center text-sm font-medium tabular-nums text-zinc-500 dark:text-zinc-400 align-middle">
+                    {idx + 1}
+                  </td>
                   <td className="px-6 py-2 align-middle">
                     <input
                       type="text"
@@ -272,21 +307,26 @@ export default function InternshipsClassClient({
                     />
                   </td>
                   <td className="px-6 py-2 align-middle">
-                    <select
-                      value={item.status}
-                      onChange={(e) =>
-                        updateItem(item.id, { status: e.target.value })
-                      }
-                      className="w-full min-w-[8rem] rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-700 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
-                      aria-label={t("status")}
-                    >
-                      <option value="">—</option>
-                      {STATUS_OPTIONS.filter((s) => s).map((s) => (
-                        <option key={s} value={s}>
-                          {t(internshipStatusLabelKey(s) ?? "status")}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="relative w-full min-w-[8rem]">
+                      <span className="pointer-events-none absolute left-2 top-1/2 z-10 -translate-y-1/2">
+                        <InternshipStatusDot status={item.status} size="sm" />
+                      </span>
+                      <select
+                        value={item.status}
+                        onChange={(e) =>
+                          updateItem(item.id, { status: e.target.value })
+                        }
+                        className={`w-full min-w-[8rem] rounded-md border border-zinc-300 bg-white py-1.5 text-sm text-zinc-700 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 ${INTERNSHIP_STATUS_DOT[item.status.trim()] ? "pl-8 pr-2" : "px-2"}`}
+                        aria-label={t("status")}
+                      >
+                        <option value="">—</option>
+                        {STATUS_OPTIONS.filter((s) => s).map((s) => (
+                          <option key={s} value={s}>
+                            {t(internshipStatusLabelKey(s) ?? "status")}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </td>
                   <td className="px-6 py-3">
                     <button

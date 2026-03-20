@@ -4,6 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import NameSortToggle from "@/components/NameSortToggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import {
+  ITALIAN_PROVINCE_SET,
+  ITALIAN_PROVINCE_SIGLE,
+  PROVINCE_LEGACY_PREFIX,
+  provinceFieldOnChange,
+  provinceFieldValue,
+} from "@/lib/italianProvinceSigle";
 import { compareByNameSort, type NameSortMode } from "@/lib/nameSort";
 
 const STORAGE_KEY = "enroll-classes";
@@ -130,6 +137,14 @@ function ensureMinStudents(students: Student[]) {
   return next;
 }
 
+function normalizeStudentOrigin(raw: string): string {
+  const t = raw.trim();
+  if (!t) return "";
+  const u = t.toUpperCase();
+  if (ITALIAN_PROVINCE_SET.has(u)) return u;
+  return t;
+}
+
 function loadClasses(): ClassItem[] {
   if (typeof window === "undefined") return [];
   try {
@@ -146,7 +161,7 @@ function loadClasses(): ClassItem[] {
             id: s.id || uid(),
             student: String(s.student ?? ""),
             grade: String(s.grade ?? ""),
-            origin: String(s.origin ?? ""),
+            origin: normalizeStudentOrigin(String(s.origin ?? "")),
             status: normalizeEnrollmentStatus(String(s.status ?? "")),
             gender: String(s.gender ?? ""),
           }))
@@ -179,7 +194,7 @@ function normalizeClasses(raw: unknown): ClassItem[] {
           id: String(s?.id ?? uid()),
           student: String(s?.student ?? ""),
           grade: String(s?.grade ?? ""),
-          origin: String(s?.origin ?? ""),
+          origin: normalizeStudentOrigin(String(s?.origin ?? "")),
           status: normalizeEnrollmentStatus(String(s?.status ?? "")),
           gender: String(s?.gender ?? ""),
         }))
@@ -277,7 +292,7 @@ export default function EnrollmentsPage() {
           id: uid(),
           student: student.trim(),
           grade: grade.trim(),
-          origin: origin.trim(),
+          origin: normalizeStudentOrigin(origin),
           status: status.trim(),
           gender: gender.trim(),
         };
@@ -319,12 +334,14 @@ export default function EnrollmentsPage() {
       studentId: string,
       patch: Partial<Pick<Student, "student" | "grade" | "origin" | "status" | "gender">>
     ) => {
+      const p = { ...patch };
+      if (p.origin !== undefined) p.origin = normalizeStudentOrigin(p.origin);
       const next = classes.map((c) =>
         c.id === classId
           ? {
               ...c,
               students: c.students.map((s) =>
-                s.id === studentId ? { ...s, ...patch } : s
+                s.id === studentId ? { ...s, ...p } : s
               ),
             }
           : c
@@ -471,12 +488,15 @@ function EditableStudentRow({
   classId,
   student: s,
   compact,
+  rowIndex,
   onUpdateStudent,
   onRemoveStudent,
 }: {
   classId: string;
   student: Student;
   compact: boolean;
+  /** 1-based position in the visible list */
+  rowIndex: number;
   onUpdateStudent: (
     classId: string,
     studentId: string,
@@ -493,6 +513,11 @@ function EditableStudentRow({
 
   return (
     <tr>
+      <td
+        className={`${cellPad} w-10 text-center text-sm font-medium tabular-nums text-zinc-500 dark:text-zinc-400`}
+      >
+        {rowIndex}
+      </td>
       <td className={`${cellPad}`}>
         <select
           value={s.gender}
@@ -519,12 +544,14 @@ function EditableStudentRow({
         />
       </td>
       <td className={`${cellPad}`}>
-        <span className="inline-flex w-full items-center gap-1.5">
-          <GradeDot grade={s.grade} size={compact ? "sm" : "md"} />
+        <div className="relative w-full min-w-0">
+          <span className="pointer-events-none absolute left-1.5 top-1/2 z-10 -translate-y-1/2">
+            <GradeDot grade={s.grade} size={compact ? "sm" : "md"} />
+          </span>
           <select
             value={s.grade}
             onChange={(e) => onUpdateStudent(classId, s.id, { grade: e.target.value })}
-            className={`${selectCl} flex-1`}
+            className={`${selectCl} w-full ${s.grade.trim() && GRADE_DOT_COLORS[s.grade.trim()] ? "pl-7" : "pl-2"}`}
             aria-label={t("grade")}
           >
             <option value="">—</option>
@@ -534,25 +561,41 @@ function EditableStudentRow({
               </option>
             ))}
           </select>
-        </span>
+        </div>
       </td>
       <td className={`${cellPad}`}>
-        <input
-          type="text"
-          value={s.origin}
-          onChange={(e) => onUpdateStudent(classId, s.id, { origin: e.target.value })}
+        <select
+          value={provinceFieldValue(s.origin)}
+          onChange={(e) =>
+            onUpdateStudent(classId, s.id, {
+              origin: provinceFieldOnChange(e.target.value),
+            })
+          }
           className={inputCl}
-          placeholder={t("origin")}
           aria-label={t("origin")}
-        />
+        >
+          <option value="">{t("origin")}</option>
+          {provinceFieldValue(s.origin).startsWith(PROVINCE_LEGACY_PREFIX) && (
+            <option value={provinceFieldValue(s.origin)}>
+              {provinceFieldValue(s.origin).slice(PROVINCE_LEGACY_PREFIX.length)}
+            </option>
+          )}
+          {ITALIAN_PROVINCE_SIGLE.map((code) => (
+            <option key={code} value={code}>
+              {code}
+            </option>
+          ))}
+        </select>
       </td>
       <td className={`${cellPad}`}>
-        <span className="inline-flex w-full items-center gap-1.5">
-          <StatusDotEnroll status={s.status} size={compact ? "sm" : "md"} />
+        <div className="relative w-full min-w-[12rem]">
+          <span className="pointer-events-none absolute left-2 top-1/2 z-10 -translate-y-1/2">
+            <StatusDotEnroll status={s.status} size={compact ? "sm" : "md"} />
+          </span>
           <select
             value={s.status}
             onChange={(e) => onUpdateStudent(classId, s.id, { status: e.target.value })}
-            className={`${selectCl} min-w-[12rem] flex-1`}
+            className={`${selectCl} w-full min-w-[12rem] ${STATUS_DOT_COLORS[s.status.trim()] ? "pl-8" : "pl-2"}`}
             aria-label={t("status")}
           >
             <option value="">—</option>
@@ -562,7 +605,7 @@ function EditableStudentRow({
               </option>
             ))}
           </select>
-        </span>
+        </div>
       </td>
       <td className={cellPad}>
         <button
@@ -692,6 +735,9 @@ function ClassBlockCompact({
             <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800 text-sm">
               <thead>
                 <tr>
+                  <th className="px-3 py-1.5 text-center text-xs font-medium uppercase text-zinc-500 dark:text-zinc-400 w-10">
+                    {t("rowIndex")}
+                  </th>
                   <th className="px-3 py-1.5 text-left text-xs font-medium uppercase text-zinc-500 dark:text-zinc-400">{t("gender")}</th>
                   <th className="px-3 py-1.5 text-left text-xs font-medium uppercase text-zinc-500 dark:text-zinc-400">{t("student")}</th>
                   <th className="px-3 py-1.5 text-left text-xs font-medium uppercase text-zinc-500 dark:text-zinc-400">{t("grade")}</th>
@@ -703,15 +749,16 @@ function ClassBlockCompact({
               <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
                 {classItem.students.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-3 py-4 text-center text-zinc-500 dark:text-zinc-400">{t("noStudentsYet")}</td>
+                    <td colSpan={7} className="px-3 py-4 text-center text-zinc-500 dark:text-zinc-400">{t("noStudentsYet")}</td>
                   </tr>
                 ) : (
-                  sortedStudents.map((s) => (
+                  sortedStudents.map((s, idx) => (
                     <EditableStudentRow
                       key={s.id}
                       classId={classItem.id}
                       student={s}
                       compact
+                      rowIndex={idx + 1}
                       onUpdateStudent={onUpdateStudent}
                       onRemoveStudent={onRemoveStudent}
                     />
@@ -728,19 +775,57 @@ function ClassBlockCompact({
               ))}
             </select>
             <input type="text" placeholder={t("student")} value={student} onChange={(e) => setStudent(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAdd()} className="rounded border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 min-w-[100px]" />
-            <select value={grade} onChange={(e) => setGrade(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAdd()} className="rounded border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 min-w-[72px]">
-              <option value="">{t("grade")}</option>
-              {GRADE_OPTIONS.filter((g) => g).map((g) => (
-                <option key={g} value={g}>{g}</option>
+            <div className="relative min-w-[72px]">
+              <span className="pointer-events-none absolute left-1.5 top-1/2 z-10 -translate-y-1/2">
+                <GradeDot grade={grade} size="sm" />
+              </span>
+              <select
+                value={grade}
+                onChange={(e) => setGrade(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+                className={`w-full rounded border border-zinc-300 bg-white py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${grade.trim() && GRADE_DOT_COLORS[grade.trim()] ? "pl-7 pr-2" : "px-2"}`}
+              >
+                <option value="">{t("grade")}</option>
+                {GRADE_OPTIONS.filter((g) => g).map((g) => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </select>
+            </div>
+            <select
+              value={provinceFieldValue(origin)}
+              onChange={(e) => setOrigin(provinceFieldOnChange(e.target.value))}
+              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+              className="rounded border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 min-w-[72px]"
+              aria-label={t("origin")}
+            >
+              <option value="">{t("origin")}</option>
+              {provinceFieldValue(origin).startsWith(PROVINCE_LEGACY_PREFIX) && (
+                <option value={provinceFieldValue(origin)}>
+                  {provinceFieldValue(origin).slice(PROVINCE_LEGACY_PREFIX.length)}
+                </option>
+              )}
+              {ITALIAN_PROVINCE_SIGLE.map((code) => (
+                <option key={code} value={code}>
+                  {code}
+                </option>
               ))}
             </select>
-            <input type="text" placeholder={t("origin")} value={origin} onChange={(e) => setOrigin(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAdd()} className="rounded border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 min-w-[80px]" />
-            <select value={status} onChange={(e) => setStatus(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAdd()} className="rounded border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 min-w-[100px]">
-              <option value="">{t("status")}</option>
-              {STATUS_OPTIONS.filter((s) => s).map((s) => (
-                <option key={s} value={s}>{t(s)}</option>
-              ))}
-            </select>
+            <div className="relative min-w-[100px]">
+              <span className="pointer-events-none absolute left-2 top-1/2 z-10 -translate-y-1/2">
+                <StatusDotEnroll status={status} size="sm" />
+              </span>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+                className={`w-full rounded border border-zinc-300 bg-white py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${STATUS_DOT_COLORS[status.trim()] ? "pl-8 pr-2" : "px-2"}`}
+              >
+                <option value="">{t("status")}</option>
+                {STATUS_OPTIONS.filter((s) => s).map((s) => (
+                  <option key={s} value={s}>{t(s)}</option>
+                ))}
+              </select>
+            </div>
             <button type="button" onClick={handleAdd} className="rounded bg-zinc-800 px-2 py-1.5 text-xs font-medium text-white dark:bg-zinc-200 dark:text-zinc-900">{t("addStudent")}</button>
           </div>
           <div className="mt-2 flex justify-end">
@@ -862,6 +947,9 @@ function ClassBlock({
           <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
             <thead>
               <tr>
+                <th className="px-4 py-2 text-center text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 w-10">
+                  {t("rowIndex")}
+                </th>
                 <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                   {t("gender")}
                 </th>
@@ -883,17 +971,18 @@ function ClassBlock({
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
               {classItem.students.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
+                  <td colSpan={7} className="px-4 py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
                     {t("noStudentsYetAddBelow")}
                   </td>
                 </tr>
               ) : (
-                sortedStudents.map((s) => (
+                sortedStudents.map((s, idx) => (
                   <EditableStudentRow
                     key={s.id}
                     classId={classItem.id}
                     student={s}
                     compact={false}
+                    rowIndex={idx + 1}
                     onUpdateStudent={onUpdateStudent}
                     onRemoveStudent={onRemoveStudent}
                   />
@@ -922,36 +1011,57 @@ function ClassBlock({
             onKeyDown={(e) => e.key === "Enter" && handleAdd()}
             className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm placeholder-zinc-400 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 dark:placeholder-zinc-500 min-w-[140px]"
           />
+          <div className="relative min-w-[88px]">
+            <span className="pointer-events-none absolute left-2 top-1/2 z-10 -translate-y-1/2">
+              <GradeDot grade={grade} size="md" />
+            </span>
+            <select
+              value={grade}
+              onChange={(e) => setGrade(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+              className={`w-full rounded-md border border-zinc-300 bg-white py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${grade.trim() && GRADE_DOT_COLORS[grade.trim()] ? "pl-9 pr-3" : "px-3"}`}
+            >
+              <option value="">{t("grade")}</option>
+              {GRADE_OPTIONS.filter((g) => g).map((g) => (
+                <option key={g} value={g}>{g}</option>
+              ))}
+            </select>
+          </div>
           <select
-            value={grade}
-            onChange={(e) => setGrade(e.target.value)}
+            value={provinceFieldValue(origin)}
+            onChange={(e) => setOrigin(provinceFieldOnChange(e.target.value))}
             onKeyDown={(e) => e.key === "Enter" && handleAdd()}
             className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 min-w-[88px]"
+            aria-label={t("origin")}
           >
-            <option value="">{t("grade")}</option>
-            {GRADE_OPTIONS.filter((g) => g).map((g) => (
-              <option key={g} value={g}>{g}</option>
+            <option value="">{t("origin")}</option>
+            {provinceFieldValue(origin).startsWith(PROVINCE_LEGACY_PREFIX) && (
+              <option value={provinceFieldValue(origin)}>
+                {provinceFieldValue(origin).slice(PROVINCE_LEGACY_PREFIX.length)}
+              </option>
+            )}
+            {ITALIAN_PROVINCE_SIGLE.map((code) => (
+              <option key={code} value={code}>
+                {code}
+              </option>
             ))}
           </select>
-          <input
-            type="text"
-            placeholder={t("origin")}
-            value={origin}
-            onChange={(e) => setOrigin(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-            className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm placeholder-zinc-400 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 dark:placeholder-zinc-500 min-w-[100px]"
-          />
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-            className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 min-w-[110px]"
-          >
-            <option value="">{t("status")}</option>
-            {STATUS_OPTIONS.filter((s) => s).map((s) => (
-              <option key={s} value={s}>{t(s)}</option>
-            ))}
-          </select>
+          <div className="relative min-w-[110px]">
+            <span className="pointer-events-none absolute left-2 top-1/2 z-10 -translate-y-1/2">
+              <StatusDotEnroll status={status} size="md" />
+            </span>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+              className={`w-full rounded-md border border-zinc-300 bg-white py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${STATUS_DOT_COLORS[status.trim()] ? "pl-9 pr-3" : "px-3"}`}
+            >
+              <option value="">{t("status")}</option>
+              {STATUS_OPTIONS.filter((s) => s).map((s) => (
+                <option key={s} value={s}>{t(s)}</option>
+              ))}
+            </select>
+          </div>
           <button
             type="button"
             onClick={handleAdd}

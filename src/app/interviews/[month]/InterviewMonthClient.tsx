@@ -312,6 +312,9 @@ export default function InterviewMonthClient({
         <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
           <thead>
             <tr>
+              <th className="px-3 py-3 text-center text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 w-12">
+                {t("rowIndex")}
+              </th>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                 {t("applicant")}
               </th>
@@ -327,13 +330,16 @@ export default function InterviewMonthClient({
           <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
             {interviews.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-6 py-12 text-center text-sm text-zinc-500 dark:text-zinc-400">
+                <td colSpan={5} className="px-6 py-12 text-center text-sm text-zinc-500 dark:text-zinc-400">
                   {t("noInterviewsThisMonth")}
                 </td>
               </tr>
             ) : (
-              sortedInterviews.map((i) => (
+              sortedInterviews.map((i, idx) => (
                 <tr key={i.id}>
+                  <td className="px-3 py-2 text-center text-sm font-medium tabular-nums text-zinc-500 dark:text-zinc-400 align-middle">
+                    {idx + 1}
+                  </td>
                   <td className="px-6 py-2 align-middle">
                     <input
                       type="text"

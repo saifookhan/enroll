@@ -142,6 +142,9 @@ export default function InternshipsPage() {
               <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
                 <thead>
                   <tr>
+                    <th className="px-3 py-3 text-center text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 w-12">
+                      {t("rowIndex")}
+                    </th>
                     <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                       {t("nameSurname")}
                     </th>
@@ -157,15 +160,18 @@ export default function InternshipsPage() {
                   {class1.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={3}
+                        colSpan={4}
                         className="px-6 py-8 text-center text-sm text-zinc-500 dark:text-zinc-400"
                       >
                         {t("noInternshipsYetClass1")}
                       </td>
                     </tr>
                   ) : (
-                    sortedClass1.map((item) => (
+                    sortedClass1.map((item, idx) => (
                       <tr key={item.id}>
+                        <td className="px-3 py-3 text-center text-sm font-medium tabular-nums text-zinc-500 dark:text-zinc-400">
+                          {idx + 1}
+                        </td>
                         <td className="px-6 py-3 text-sm text-zinc-900 dark:text-zinc-50">
                           {item.nameSurname || "—"}
                         </td>
@@ -220,6 +226,9 @@ export default function InternshipsPage() {
               <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
                 <thead>
                   <tr>
+                    <th className="px-3 py-3 text-center text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 w-12">
+                      {t("rowIndex")}
+                    </th>
                     <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                       {t("nameSurname")}
                     </th>
@@ -235,15 +244,18 @@ export default function InternshipsPage() {
                   {class2.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={3}
+                        colSpan={4}
                         className="px-6 py-8 text-center text-sm text-zinc-500 dark:text-zinc-400"
                       >
                         {t("noInternshipsYetClass2")}
                       </td>
                     </tr>
                   ) : (
-                    sortedClass2.map((item) => (
+                    sortedClass2.map((item, idx) => (
                       <tr key={item.id}>
+                        <td className="px-3 py-3 text-center text-sm font-medium tabular-nums text-zinc-500 dark:text-zinc-400">
+                          {idx + 1}
+                        </td>
                         <td className="px-6 py-3 text-sm text-zinc-900 dark:text-zinc-50">
                           {item.nameSurname || "—"}
                         </td>
