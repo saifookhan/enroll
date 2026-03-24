@@ -92,7 +92,16 @@ function StatusDotEnroll({ status, size = "md" }: { status: string; size?: "sm" 
   );
 }
 
-const GENDER_OPTIONS = ["", "Female", "Male"];
+const GENDER_OPTIONS = ["", "F", "M"] as const;
+
+function normalizeGender(raw: string): string {
+  const s = raw.trim();
+  if (!s) return "";
+  const u = s.toUpperCase();
+  if (u === "F" || u === "FEMALE" || u === "FEMMINA") return "F";
+  if (u === "M" || u === "MALE" || u === "MASCHIO") return "M";
+  return "";
+}
 
 type ViewMode = "list" | "grid" | "compact";
 
@@ -163,7 +172,7 @@ function loadClasses(): ClassItem[] {
             grade: String(s.grade ?? ""),
             origin: normalizeStudentOrigin(String(s.origin ?? "")),
             status: normalizeEnrollmentStatus(String(s.status ?? "")),
-            gender: String(s.gender ?? ""),
+            gender: normalizeGender(String(s.gender ?? "")),
           }))
         : [],
     })).map((c) => ({ ...c, students: ensureMinStudents(c.students) }));
@@ -196,7 +205,7 @@ function normalizeClasses(raw: unknown): ClassItem[] {
           grade: String(s?.grade ?? ""),
           origin: normalizeStudentOrigin(String(s?.origin ?? "")),
           status: normalizeEnrollmentStatus(String(s?.status ?? "")),
-          gender: String(s?.gender ?? ""),
+          gender: normalizeGender(String(s?.gender ?? "")),
         }))
       : [],
   })).map((c) => ({ ...c, students: ensureMinStudents(c.students) }));
@@ -294,7 +303,7 @@ export default function EnrollmentsPage() {
           grade: grade.trim(),
           origin: normalizeStudentOrigin(origin),
           status: status.trim(),
-          gender: gender.trim(),
+          gender: normalizeGender(gender),
         };
         const emptyIndex = c.students.findIndex((s) => isStudentEmpty(s));
         if (emptyIndex >= 0) {
@@ -336,6 +345,7 @@ export default function EnrollmentsPage() {
     ) => {
       const p = { ...patch };
       if (p.origin !== undefined) p.origin = normalizeStudentOrigin(p.origin);
+      if (p.gender !== undefined) p.gender = normalizeGender(p.gender);
       const next = classes.map((c) =>
         c.id === classId
           ? {
@@ -372,7 +382,9 @@ export default function EnrollmentsPage() {
 
   return (
     <div className="min-h-screen bg-zinc-50 font-sans dark:bg-zinc-950">
-      <main className="mx-auto max-w-5xl px-6 py-8">
+      <main
+        className={`mx-auto px-6 py-8 ${viewMode === "grid" ? "max-w-7xl" : "max-w-5xl"}`}
+      >
         <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
           {t("enrollments")}
         </h2>
@@ -445,7 +457,7 @@ export default function EnrollmentsPage() {
         <div
           className={
             viewMode === "grid"
-              ? "mt-8 grid gap-6 sm:grid-cols-2"
+              ? "mt-8 grid min-w-0 grid-cols-1 gap-6 sm:grid-cols-2"
               : "mt-8 space-y-8"
           }
         >
@@ -470,6 +482,7 @@ export default function EnrollmentsPage() {
               <ClassBlock
                 key={c.id}
                 classItem={c}
+                dense={viewMode === "grid"}
                 onAddStudent={addStudent}
                 onRemoveStudent={removeStudent}
                 onUpdateStudent={updateStudent}
@@ -488,6 +501,7 @@ function EditableStudentRow({
   classId,
   student: s,
   compact,
+  squeezeColumns,
   rowIndex,
   onUpdateStudent,
   onRemoveStudent,
@@ -495,6 +509,8 @@ function EditableStudentRow({
   classId: string;
   student: Student;
   compact: boolean;
+  /** Narrow layout: no fixed min-width on status so table can fit grid cards */
+  squeezeColumns?: boolean;
   /** 1-based position in the visible list */
   rowIndex: number;
   onUpdateStudent: (
@@ -510,6 +526,8 @@ function EditableStudentRow({
     ? "w-full min-w-[4rem] rounded border border-zinc-300 bg-white px-1.5 py-1 text-xs dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
     : "w-full min-w-[5rem] rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50";
   const selectCl = inputCl;
+  const statusWrapCl = squeezeColumns ? "relative w-full min-w-0" : "relative w-full min-w-[12rem]";
+  const statusSelectMin = squeezeColumns ? "" : " min-w-[12rem]";
 
   return (
     <tr>
@@ -528,17 +546,17 @@ function EditableStudentRow({
           <option value="">—</option>
           {GENDER_OPTIONS.filter((g) => g).map((g) => (
             <option key={g} value={g}>
-              {t(g.toLowerCase())}
+              {g}
             </option>
           ))}
         </select>
       </td>
-      <td className={`${cellPad}`}>
+      <td className={`${cellPad}${squeezeColumns ? " min-w-0" : ""}`}>
         <input
           type="text"
           value={s.student}
           onChange={(e) => onUpdateStudent(classId, s.id, { student: e.target.value })}
-          className={inputCl}
+          className={`${inputCl}${squeezeColumns ? " min-w-0" : ""}`}
           placeholder={t("student")}
           aria-label={t("student")}
         />
@@ -587,15 +605,15 @@ function EditableStudentRow({
           ))}
         </select>
       </td>
-      <td className={`${cellPad}`}>
-        <div className="relative w-full min-w-[12rem]">
+      <td className={`${cellPad}${squeezeColumns ? " min-w-0" : ""}`}>
+        <div className={statusWrapCl}>
           <span className="pointer-events-none absolute left-2 top-1/2 z-10 -translate-y-1/2">
             <StatusDotEnroll status={s.status} size={compact ? "sm" : "md"} />
           </span>
           <select
             value={s.status}
             onChange={(e) => onUpdateStudent(classId, s.id, { status: e.target.value })}
-            className={`${selectCl} w-full min-w-[12rem] ${STATUS_DOT_COLORS[s.status.trim()] ? "pl-8" : "pl-2"}`}
+            className={`${selectCl} w-full${statusSelectMin} max-w-full ${STATUS_DOT_COLORS[s.status.trim()] ? "pl-8" : "pl-2"}`}
             aria-label={t("status")}
           >
             <option value="">—</option>
@@ -768,10 +786,10 @@ function ClassBlockCompact({
             </table>
           </div>
           <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-zinc-200 dark:border-zinc-800 pt-3">
-            <select value={gender} onChange={(e) => setGender(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAdd()} className="rounded border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 min-w-[88px]">
+            <select value={gender} onChange={(e) => setGender(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAdd()} className="rounded border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 min-w-[52px]">
               <option value="">{t("gender")}</option>
               {GENDER_OPTIONS.filter((g) => g).map((g) => (
-                <option key={g} value={g}>{t(g.toLowerCase())}</option>
+                <option key={g} value={g}>{g}</option>
               ))}
             </select>
             <input type="text" placeholder={t("student")} value={student} onChange={(e) => setStudent(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAdd()} className="rounded border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 min-w-[100px]" />
@@ -839,6 +857,7 @@ function ClassBlockCompact({
 
 function ClassBlock({
   classItem,
+  dense,
   onAddStudent,
   onRemoveStudent,
   onUpdateStudent,
@@ -846,6 +865,8 @@ function ClassBlock({
   onRenameClass,
 }: {
   classItem: ClassItem;
+  /** Grid view: narrower card — compact table + fixed layout so all columns stay in view */
+  dense?: boolean;
   onAddStudent: (classId: string, student: string, grade: string, origin: string, status: string, gender: string) => void;
   onRemoveStudent: (classId: string, studentId: string) => void;
   onUpdateStudent: (
@@ -885,10 +906,15 @@ function ClassBlock({
     setGender("");
   };
 
+  const thPad = dense ? "px-2 py-1.5" : "px-4 py-2";
+  const tableWrapCl = dense ? "overflow-x-auto min-w-0" : "overflow-x-auto";
+
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 overflow-hidden">
+    <section
+      className={`rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 overflow-hidden${dense ? " min-w-0" : ""}`}
+    >
       <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 px-4 py-3">
-        <h3 className="font-semibold text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
+        <h3 className="font-semibold text-zinc-900 dark:text-zinc-50 flex min-w-0 flex-1 items-center gap-2">
           {editingName ? (
             <input
               type="text"
@@ -913,14 +939,16 @@ function ClassBlock({
             />
           ) : (
             <>
-              {displayName}
+              <span className="min-w-0 truncate" title={displayName}>
+                {displayName}
+              </span>
               <button
                 type="button"
                 onClick={() => {
                   setNameInput(classItem.name || "");
                   setEditingName(true);
                 }}
-                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded p-1"
+                className="shrink-0 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded p-1"
                 aria-label={t("classNamePlaceholder")}
                 title={t("classNamePlaceholder")}
               >
@@ -932,46 +960,74 @@ function ClassBlock({
         <button
           type="button"
           onClick={() => onRemoveClass(classItem.id)}
-          className="text-xs text-zinc-500 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400"
+          className="shrink-0 text-xs text-zinc-500 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400"
         >
           {t("removeClass")}
         </button>
       </div>
-      <div className="p-4">
+      <div className={dense ? "min-w-0 p-3" : "p-4"}>
         <NameSortToggle
           value={nameSort}
           onChange={setNameSort}
-          className="mb-3 justify-end sm:justify-start"
+          className={`mb-3 justify-end sm:justify-start${dense ? " min-w-0" : ""}`}
         />
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
+        <div className={tableWrapCl}>
+          <table
+            className={`w-full divide-y divide-zinc-200 dark:divide-zinc-800${dense ? " table-fixed text-xs" : " min-w-full"}`}
+          >
+            {dense && (
+              <colgroup>
+                <col className="w-8" />
+                <col className="w-11" />
+                <col />
+                <col className="w-[4.25rem]" />
+                <col className="w-[3.25rem]" />
+                <col className="w-[36%]" />
+                <col className="w-7" />
+              </colgroup>
+            )}
             <thead>
               <tr>
-                <th className="px-4 py-2 text-center text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 w-10">
+                <th
+                  className={`${thPad} text-center text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 w-10`}
+                >
                   {t("rowIndex")}
                 </th>
-                <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                <th
+                  className={`${thPad} text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400`}
+                >
                   {t("gender")}
                 </th>
-                <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                <th
+                  className={`${thPad} text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400`}
+                >
                   {t("student")}
                 </th>
-                <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                <th
+                  className={`${thPad} text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400`}
+                >
                   {t("grade")}
                 </th>
-                <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                <th
+                  className={`${thPad} text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400`}
+                >
                   {t("origin")}
                 </th>
-                <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                <th
+                  className={`${thPad} text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400`}
+                >
                   {t("status")}
                 </th>
-                <th className="px-4 py-2 w-8" />
+                <th className={`${thPad} w-8`} />
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
               {classItem.students.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
+                  <td
+                    colSpan={7}
+                    className={`${dense ? "px-2 py-4 text-xs" : "px-4 py-6 text-sm"} text-center text-zinc-500 dark:text-zinc-400`}
+                  >
                     {t("noStudentsYetAddBelow")}
                   </td>
                 </tr>
@@ -981,7 +1037,8 @@ function ClassBlock({
                     key={s.id}
                     classId={classItem.id}
                     student={s}
-                    compact={false}
+                    compact={!!dense}
+                    squeezeColumns={!!dense}
                     rowIndex={idx + 1}
                     onUpdateStudent={onUpdateStudent}
                     onRemoveStudent={onRemoveStudent}
@@ -991,16 +1048,22 @@ function ClassBlock({
             </tbody>
           </table>
         </div>
-        <div className="mt-4 flex flex-wrap items-end gap-3 border-t border-zinc-200 dark:border-zinc-800 pt-4">
+        <div
+          className={`mt-4 flex flex-wrap items-end border-t border-zinc-200 dark:border-zinc-800 pt-4${dense ? " gap-2" : " gap-3"}`}
+        >
           <select
             value={gender}
             onChange={(e) => setGender(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-            className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 min-w-[100px]"
+            className={
+              dense
+                ? "min-w-[48px] rounded border border-zinc-300 bg-white px-2 py-1.5 text-xs dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
+                : "min-w-[56px] rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
+            }
           >
             <option value="">{t("gender")}</option>
             {GENDER_OPTIONS.filter((g) => g).map((g) => (
-              <option key={g} value={g}>{t(g.toLowerCase())}</option>
+              <option key={g} value={g}>{g}</option>
             ))}
           </select>
           <input
@@ -1009,17 +1072,25 @@ function ClassBlock({
             value={student}
             onChange={(e) => setStudent(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-            className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm placeholder-zinc-400 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 dark:placeholder-zinc-500 min-w-[140px]"
+            className={
+              dense
+                ? "min-w-0 max-w-full flex-1 rounded border border-zinc-300 bg-white px-2 py-1.5 text-xs placeholder-zinc-400 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 dark:placeholder-zinc-500 sm:min-w-[100px] sm:flex-none"
+                : "min-w-[140px] rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm placeholder-zinc-400 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 dark:placeholder-zinc-500"
+            }
           />
-          <div className="relative min-w-[88px]">
+          <div className={dense ? "relative min-w-[68px]" : "relative min-w-[88px]"}>
             <span className="pointer-events-none absolute left-2 top-1/2 z-10 -translate-y-1/2">
-              <GradeDot grade={grade} size="md" />
+              <GradeDot grade={grade} size={dense ? "sm" : "md"} />
             </span>
             <select
               value={grade}
               onChange={(e) => setGrade(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-              className={`w-full rounded-md border border-zinc-300 bg-white py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${grade.trim() && GRADE_DOT_COLORS[grade.trim()] ? "pl-9 pr-3" : "px-3"}`}
+              className={
+                dense
+                  ? `w-full rounded border border-zinc-300 bg-white py-1.5 text-xs dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${grade.trim() && GRADE_DOT_COLORS[grade.trim()] ? "pl-7 pr-2" : "px-2"}`
+                  : `w-full rounded-md border border-zinc-300 bg-white py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${grade.trim() && GRADE_DOT_COLORS[grade.trim()] ? "pl-9 pr-3" : "px-3"}`
+              }
             >
               <option value="">{t("grade")}</option>
               {GRADE_OPTIONS.filter((g) => g).map((g) => (
@@ -1031,7 +1102,11 @@ function ClassBlock({
             value={provinceFieldValue(origin)}
             onChange={(e) => setOrigin(provinceFieldOnChange(e.target.value))}
             onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-            className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 min-w-[88px]"
+            className={
+              dense
+                ? "min-w-[64px] rounded border border-zinc-300 bg-white px-2 py-1.5 text-xs dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
+                : "min-w-[88px] rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
+            }
             aria-label={t("origin")}
           >
             <option value="">{t("origin")}</option>
@@ -1046,15 +1121,19 @@ function ClassBlock({
               </option>
             ))}
           </select>
-          <div className="relative min-w-[110px]">
+          <div className={dense ? "relative min-w-0 flex-1 basis-[8rem] sm:min-w-[92px] sm:flex-none" : "relative min-w-[110px]"}>
             <span className="pointer-events-none absolute left-2 top-1/2 z-10 -translate-y-1/2">
-              <StatusDotEnroll status={status} size="md" />
+              <StatusDotEnroll status={status} size={dense ? "sm" : "md"} />
             </span>
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-              className={`w-full rounded-md border border-zinc-300 bg-white py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${STATUS_DOT_COLORS[status.trim()] ? "pl-9 pr-3" : "px-3"}`}
+              className={
+                dense
+                  ? `w-full min-w-0 max-w-full rounded border border-zinc-300 bg-white py-1.5 text-xs dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${STATUS_DOT_COLORS[status.trim()] ? "pl-8 pr-2" : "px-2"}`
+                  : `w-full rounded-md border border-zinc-300 bg-white py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${STATUS_DOT_COLORS[status.trim()] ? "pl-9 pr-3" : "px-3"}`
+              }
             >
               <option value="">{t("status")}</option>
               {STATUS_OPTIONS.filter((s) => s).map((s) => (
@@ -1065,7 +1144,11 @@ function ClassBlock({
           <button
             type="button"
             onClick={handleAdd}
-            className="rounded-md bg-zinc-800 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-200 dark:text-zinc-900 dark:hover:bg-zinc-300"
+            className={
+              dense
+                ? "shrink-0 rounded bg-zinc-800 px-2 py-1.5 text-xs font-medium text-white hover:bg-zinc-700 dark:bg-zinc-200 dark:text-zinc-900 dark:hover:bg-zinc-300"
+                : "rounded-md bg-zinc-800 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-200 dark:text-zinc-900 dark:hover:bg-zinc-300"
+            }
           >
             {t("addStudent")}
           </button>
