@@ -150,12 +150,14 @@ function StatusDropdown({
   size = "md",
   compact = false,
   className = "",
+  buttonClassName = "",
 }: {
   value: string;
   onChange: (value: string) => void;
   size?: "sm" | "md";
   compact?: boolean;
   className?: string;
+  buttonClassName?: string;
 }) {
   const { t } = useLanguage();
   const [open, setOpen] = useState(false);
@@ -175,11 +177,11 @@ function StatusDropdown({
     ? "inline-flex items-center gap-1 rounded border border-zinc-200 bg-white px-1.5 py-1 text-left text-xs text-zinc-900 shadow-sm hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-700"
     : "inline-flex items-center gap-2 rounded border border-zinc-200 bg-white px-2.5 py-1.5 text-left text-sm text-zinc-900 shadow-sm hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-700";
   return (
-    <div ref={ref} className={`relative inline-block ${className}`}>
+    <div ref={ref} className={`relative min-w-0 ${className || "inline-block"}`}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className={btnCl}
+        className={`${btnCl} ${buttonClassName}`.trim()}
         aria-haspopup="listbox"
         aria-expanded={open}
       >
@@ -288,16 +290,22 @@ function SlotRows({
   compact?: boolean;
 }) {
   const { t } = useLanguage();
+  const ctrlH = compact ? "h-8" : "h-9";
+  const labelCl =
+    "mb-0 block text-[10px] font-medium uppercase leading-none text-zinc-500 dark:text-zinc-400";
   const inputCl = compact
     ? "rounded border border-zinc-300 bg-white px-1.5 py-1 text-xs dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
     : "rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50";
   const notesCl = compact
-    ? "min-h-[2.25rem] w-[7rem] max-w-[9rem] shrink-0 rounded border border-zinc-300 bg-white px-1.5 py-0.5 text-xs leading-snug dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
-    : "min-h-[3rem] w-full max-w-xs rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50";
-  const gradeSelectCl = (outcome: string) =>
+    ? `box-border w-full min-w-0 rounded border border-zinc-300 bg-white px-1.5 py-1 text-xs leading-tight dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${ctrlH} resize-none overflow-y-auto`
+    : `box-border w-full min-w-0 rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm leading-tight dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${ctrlH} resize-none overflow-y-auto`;
+  const gradeSelectBase = (outcome: string) =>
     compact
-      ? `w-[4.5rem] shrink-0 rounded border border-zinc-300 bg-white py-0.5 pl-6 pr-1 text-xs dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${outcome.trim() && GRADE_DOT_COLORS[outcome.trim()] ? "" : "pl-1.5"}`
-      : `w-[5.5rem] shrink-0 rounded-md border border-zinc-300 bg-white py-1.5 pl-8 pr-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${outcome.trim() && GRADE_DOT_COLORS[outcome.trim()] ? "" : "pl-2"}`;
+      ? `box-border h-full min-h-0 w-full min-w-0 rounded border border-zinc-300 bg-white pr-1 text-xs dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${outcome.trim() && GRADE_DOT_COLORS[outcome.trim()] ? "pl-6" : "pl-1.5"}`
+    : `box-border h-full min-h-0 w-full min-w-0 rounded-md border border-zinc-300 bg-white pr-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${outcome.trim() && GRADE_DOT_COLORS[outcome.trim()] ? "pl-8" : "pl-2"}`;
+  const statusBtnExtra = compact
+    ? `${ctrlH} !min-h-0 !max-h-none w-full min-w-0 !py-0 !px-2 justify-between gap-1 [&>span:nth-child(2)]:truncate`
+    : `${ctrlH} !min-h-0 !max-h-none w-full min-w-0 !py-0 justify-between gap-1 [&>span:nth-child(2)]:truncate`;
 
   return (
     <div className={compact ? "space-y-1.5" : "space-y-3"}>
@@ -339,30 +347,30 @@ function SlotRows({
           <div
             className={
               compact
-                ? "mt-1.5 flex flex-wrap items-end gap-1.5"
-                : "mt-2 flex flex-wrap items-end gap-2"
+                ? "mt-1.5 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,7.5rem)_minmax(0,4.5rem)_minmax(0,1fr)]"
+                : "mt-2 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,9rem)_minmax(0,5.5rem)_minmax(0,1fr)]"
             }
           >
-            <div className="shrink-0">
-              <span className="mb-0.5 block text-[10px] font-medium uppercase text-zinc-500 dark:text-zinc-400">
-                {t("status")}
-              </span>
-              <StatusDropdown
-                value={
-                  INTERVIEW_STATUSES.some((s) => s.value === slot.status)
-                    ? slot.status
-                    : DEFAULT_SLOT_STATUS
-                }
-                onChange={(v) => onSlotChange(idx, { status: v })}
-                size="sm"
-                compact={compact}
-              />
+            <div className="flex min-w-0 flex-col gap-1">
+              <span className={labelCl}>{t("status")}</span>
+              <div className={`min-w-0 ${ctrlH}`}>
+                <StatusDropdown
+                  value={
+                    INTERVIEW_STATUSES.some((s) => s.value === slot.status)
+                      ? slot.status
+                      : DEFAULT_SLOT_STATUS
+                  }
+                  onChange={(v) => onSlotChange(idx, { status: v })}
+                  size="sm"
+                  compact={compact}
+                  className="block h-full w-full min-w-0"
+                  buttonClassName={statusBtnExtra}
+                />
+              </div>
             </div>
-            <div>
-              <span className="mb-0.5 block text-[10px] font-medium uppercase text-zinc-500 dark:text-zinc-400">
-                {t("outcome")}
-              </span>
-              <div className="relative">
+            <div className="flex min-w-0 flex-col gap-1">
+              <span className={labelCl}>{t("outcome")}</span>
+              <div className={`relative min-w-0 ${ctrlH}`}>
                 <span className="pointer-events-none absolute left-1.5 top-1/2 z-10 -translate-y-1/2">
                   <GradeDot grade={slot.outcome} size="sm" />
                 </span>
@@ -371,7 +379,7 @@ function SlotRows({
                   onChange={(e) =>
                     onSlotChange(idx, { outcome: normalizeGrade(e.target.value) })
                   }
-                  className={gradeSelectCl(slot.outcome)}
+                  className={gradeSelectBase(slot.outcome)}
                   aria-label={`${t("outcome")} ${idx + 1}`}
                 >
                   <option value="">—</option>
@@ -383,14 +391,12 @@ function SlotRows({
                 </select>
               </div>
             </div>
-            <div className="min-w-0 flex-1">
-              <span className="mb-0.5 block text-[10px] font-medium uppercase text-zinc-500 dark:text-zinc-400">
-                {t("notes")}
-              </span>
+            <div className="flex min-w-0 flex-col gap-1">
+              <span className={labelCl}>{t("notes")}</span>
               <textarea
                 value={slot.notes}
                 onChange={(e) => onSlotChange(idx, { notes: e.target.value })}
-                rows={compact ? 2 : 2}
+                rows={1}
                 className={notesCl}
                 placeholder={t("notes")}
                 aria-label={`${t("notes")} ${idx + 1}`}
