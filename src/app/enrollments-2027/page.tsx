@@ -12,12 +12,14 @@ import {
   provinceFieldValue,
 } from "@/lib/italianProvinceSigle";
 import { compareByNameSort, type NameSortMode } from "@/lib/nameSort";
+import { GradeDot } from "@/components/GradeDot";
 import { EnrollmentStatusDot } from "@/components/EnrollmentStatusDot";
 import {
   ENROLLMENT_STATUS_DOT_COLORS,
   normalizeEnrollmentStatus,
   STATUS_OPTIONS,
 } from "@/lib/enrollmentStatusShared";
+import { GRADE_DOT_COLORS, GRADE_OPTIONS } from "@/lib/gradeShared";
 
 const STORAGE_KEY = "enroll-classes";
 const VIEW_KEY = "enroll-view";
@@ -26,28 +28,6 @@ const API_KEY_VIEW = "view";
 const MIN_YEAR = 2027;
 const MAX_YEAR = 2032;
 const DEFAULT_CLASS_SIZE = 20;
-
-const GRADE_OPTIONS = ["", "A+", "A", "A-"];
-
-const GRADE_DOT_COLORS: Record<string, string> = {
-  "A+": "bg-emerald-700 dark:bg-emerald-600",
-  "A": "bg-emerald-500",
-  "A-": "bg-amber-400",
-};
-
-function GradeDot({ grade, size = "md" }: { grade: string; size?: "sm" | "md" }) {
-  const g = grade.trim();
-  const bg = GRADE_DOT_COLORS[g];
-  const sizeClass = size === "sm" ? "h-2.5 w-2.5" : "h-3.5 w-3.5";
-  if (!bg) return null;
-  return (
-    <span
-      className={`inline-block shrink-0 rounded-full ${sizeClass} ${bg}`}
-      title={g}
-      aria-hidden
-    />
-  );
-}
 
 const GENDER_OPTIONS = ["", "F", "M"] as const;
 

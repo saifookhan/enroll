@@ -6,21 +6,22 @@ import NameSortToggle from "@/components/NameSortToggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { compareByNameSort, type NameSortMode } from "@/lib/nameSort";
-import { EnrollmentStatusDot } from "@/components/EnrollmentStatusDot";
-import {
-  ENROLLMENT_STATUS_DOT_COLORS,
-  normalizeEnrollmentStatus,
-  STATUS_OPTIONS,
-} from "@/lib/enrollmentStatusShared";
+import { GradeDot } from "@/components/GradeDot";
+import { GRADE_DOT_COLORS, GRADE_OPTIONS, normalizeGrade } from "@/lib/gradeShared";
 
 const STORAGE_PREFIX = "enroll-interviews-";
 const API_KEY_PREFIX = "interviews-";
 const SLOT_COUNT = 4;
+const DEFAULT_SLOT_STATUS = "awaiting-reply";
+const VALID_INTERVIEW_STATUSES = new Set(["confirmed", "awaiting-reply", "annulled"]);
 
 type InterviewSlot = {
   time: string;
   firstName: string;
   lastName: string;
+  status: string;
+  outcome: string;
+  notes: string;
 };
 
 function emptySlots(): InterviewSlot[] {
@@ -28,7 +29,24 @@ function emptySlots(): InterviewSlot[] {
     time: "",
     firstName: "",
     lastName: "",
+    status: DEFAULT_SLOT_STATUS,
+    outcome: "",
+    notes: "",
   }));
+}
+
+function normalizeSlotStatus(raw: string, slotIndex: number, rowFallback?: string): string {
+  const v = raw.trim();
+  if (VALID_INTERVIEW_STATUSES.has(v)) return v;
+  if (slotIndex === 0 && rowFallback && VALID_INTERVIEW_STATUSES.has(rowFallback.trim())) {
+    return rowFallback.trim();
+  }
+  return DEFAULT_SLOT_STATUS;
+}
+
+function coerceSlotStatus(raw: string): string {
+  const v = raw.trim();
+  return VALID_INTERVIEW_STATUSES.has(v) ? v : DEFAULT_SLOT_STATUS;
 }
 
 /** Da stringa unica (dati vecchi) a nome + cognome (ultima parola = cognome). */
@@ -40,12 +58,25 @@ function splitLegacyFullName(raw: string): { firstName: string; lastName: string
   return { firstName: t.slice(0, i).trim(), lastName: t.slice(i + 1).trim() };
 }
 
-function normalizeSlots(raw: unknown): InterviewSlot[] {
+function normalizeSlots(
+  raw: unknown,
+  row?: { status: string; outcome: string; notes: string }
+): InterviewSlot[] {
   const base = emptySlots();
   if (!Array.isArray(raw)) return base;
   for (let i = 0; i < SLOT_COUNT; i++) {
     const s = raw[i] as Record<string, unknown> | undefined;
-    if (!s) continue;
+    if (!s) {
+      if (i === 0 && row) {
+        base[i] = {
+          ...base[i],
+          status: normalizeSlotStatus("", 0, row.status),
+          outcome: normalizeGrade(row.outcome),
+          notes: row.notes ?? "",
+        };
+      }
+      continue;
+    }
     let firstName = String(s.firstName ?? "").trim();
     let lastName = String(s.lastName ?? "").trim();
     const nameSingle = String(s.name ?? "").trim();
@@ -54,10 +85,18 @@ function normalizeSlots(raw: unknown): InterviewSlot[] {
       firstName = sp.firstName;
       lastName = sp.lastName;
     }
+    let outcome = normalizeGrade(String(s.outcome ?? ""));
+    if (!outcome && i === 0 && row?.outcome) outcome = normalizeGrade(row.outcome);
+    let notes = String(s.notes ?? "");
+    if (!notes.trim() && i === 0 && row?.notes) notes = row.notes;
+    const status = normalizeSlotStatus(String(s.status ?? ""), i, row?.status);
     base[i] = {
       time: String(s.time ?? ""),
       firstName,
       lastName,
+      status,
+      outcome,
+      notes,
     };
   }
   return base;
@@ -109,11 +148,13 @@ function StatusDropdown({
   value,
   onChange,
   size = "md",
+  compact = false,
   className = "",
 }: {
   value: string;
   onChange: (value: string) => void;
   size?: "sm" | "md";
+  compact?: boolean;
   className?: string;
 }) {
   const { t } = useLanguage();
@@ -130,12 +171,15 @@ function StatusDropdown({
     return () => document.removeEventListener("click", handleClick);
   }, [open]);
 
+  const btnCl = compact
+    ? "inline-flex items-center gap-1 rounded border border-zinc-200 bg-white px-1.5 py-1 text-left text-xs text-zinc-900 shadow-sm hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-700"
+    : "inline-flex items-center gap-2 rounded border border-zinc-200 bg-white px-2.5 py-1.5 text-left text-sm text-zinc-900 shadow-sm hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-700";
   return (
     <div ref={ref} className={`relative inline-block ${className}`}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex items-center gap-2 rounded border border-zinc-200 bg-white px-2.5 py-1.5 text-left text-sm text-zinc-900 shadow-sm hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-700"
+        className={btnCl}
         aria-haspopup="listbox"
         aria-expanded={open}
       >
@@ -173,9 +217,6 @@ type Interview = {
   id: string;
   date: string;
   slots: InterviewSlot[];
-  notes: string;
-  status: string;
-  outcome: string;
 };
 
 function uid() {
@@ -203,19 +244,17 @@ function normalizeInterviews(raw: unknown): Interview[] {
   if (!Array.isArray(raw)) return [];
   return (raw as Record<string, unknown>[]).map((i) => {
     const id = String(i?.id ?? uid());
-    const status = String(i?.status ?? INTERVIEW_STATUSES[1].value);
-    const outcome = normalizeEnrollmentStatus(String(i?.outcome ?? ""));
-    const notes = String(i?.notes ?? "");
     const date = String(i?.date ?? "");
+    const rowStatus = String(i?.status ?? DEFAULT_SLOT_STATUS);
+    const rowOutcome = String(i?.outcome ?? "");
+    const rowNotes = String(i?.notes ?? "");
+    const rowFallback = { status: rowStatus, outcome: rowOutcome, notes: rowNotes };
 
     if (Array.isArray(i?.slots)) {
       return {
         id,
         date,
-        slots: normalizeSlots(i.slots),
-        notes,
-        status,
-        outcome,
+        slots: normalizeSlots(i.slots, rowFallback),
       };
     }
 
@@ -225,6 +264,7 @@ function normalizeInterviews(raw: unknown): Interview[] {
     if (applicant.trim() || dateTime.trim()) {
       const sp = splitLegacyFullName(applicant);
       legacySlots[0] = {
+        ...legacySlots[0],
         time: dateTime,
         firstName: sp.firstName,
         lastName: sp.lastName,
@@ -233,10 +273,7 @@ function normalizeInterviews(raw: unknown): Interview[] {
     return {
       id,
       date,
-      slots: legacySlots,
-      notes,
-      status,
-      outcome,
+      slots: normalizeSlots(legacySlots, rowFallback),
     };
   });
 }
@@ -254,34 +291,112 @@ function SlotRows({
   const inputCl = compact
     ? "rounded border border-zinc-300 bg-white px-1.5 py-1 text-xs dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
     : "rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50";
+  const notesCl = compact
+    ? "min-h-[2.25rem] w-[7rem] max-w-[9rem] shrink-0 rounded border border-zinc-300 bg-white px-1.5 py-0.5 text-xs leading-snug dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
+    : "min-h-[3rem] w-full max-w-xs rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50";
+  const gradeSelectCl = (outcome: string) =>
+    compact
+      ? `w-[4.5rem] shrink-0 rounded border border-zinc-300 bg-white py-0.5 pl-6 pr-1 text-xs dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${outcome.trim() && GRADE_DOT_COLORS[outcome.trim()] ? "" : "pl-1.5"}`
+      : `w-[5.5rem] shrink-0 rounded-md border border-zinc-300 bg-white py-1.5 pl-8 pr-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${outcome.trim() && GRADE_DOT_COLORS[outcome.trim()] ? "" : "pl-2"}`;
+
   return (
-    <div className="space-y-2">
+    <div className={compact ? "space-y-1.5" : "space-y-3"}>
       {slots.map((slot, idx) => (
-        <div key={idx} className="flex min-w-[14rem] flex-nowrap items-center gap-2">
-          <input
-            type="text"
-            value={slot.time}
-            onChange={(e) => onSlotChange(idx, { time: e.target.value })}
-            placeholder={t("time")}
-            className={`${inputCl} w-[5rem] shrink-0 sm:w-[5.5rem]`}
-            aria-label={`${t("time")} ${idx + 1}`}
-          />
-          <input
-            type="text"
-            value={slot.firstName}
-            onChange={(e) => onSlotChange(idx, { firstName: e.target.value })}
-            placeholder={t("firstName")}
-            className={`${inputCl} min-w-0 flex-1`}
-            aria-label={`${t("firstName")} ${idx + 1}`}
-          />
-          <input
-            type="text"
-            value={slot.lastName}
-            onChange={(e) => onSlotChange(idx, { lastName: e.target.value })}
-            placeholder={t("lastName")}
-            className={`${inputCl} min-w-0 flex-1`}
-            aria-label={`${t("lastName")} ${idx + 1}`}
-          />
+        <div
+          key={idx}
+          className={
+            compact
+              ? "rounded border border-zinc-200/90 p-1.5 dark:border-zinc-700"
+              : "rounded-lg border border-zinc-200 p-3 dark:border-zinc-700"
+          }
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="text"
+              value={slot.time}
+              onChange={(e) => onSlotChange(idx, { time: e.target.value })}
+              placeholder={t("time")}
+              className={`${inputCl} w-[4.75rem] shrink-0 sm:w-[5.25rem]`}
+              aria-label={`${t("time")} ${idx + 1}`}
+            />
+            <input
+              type="text"
+              value={slot.firstName}
+              onChange={(e) => onSlotChange(idx, { firstName: e.target.value })}
+              placeholder={t("firstName")}
+              className={`${inputCl} min-w-[4rem] flex-1`}
+              aria-label={`${t("firstName")} ${idx + 1}`}
+            />
+            <input
+              type="text"
+              value={slot.lastName}
+              onChange={(e) => onSlotChange(idx, { lastName: e.target.value })}
+              placeholder={t("lastName")}
+              className={`${inputCl} min-w-[4rem] flex-1`}
+              aria-label={`${t("lastName")} ${idx + 1}`}
+            />
+          </div>
+          <div
+            className={
+              compact
+                ? "mt-1.5 flex flex-wrap items-end gap-1.5"
+                : "mt-2 flex flex-wrap items-end gap-2"
+            }
+          >
+            <div className="shrink-0">
+              <span className="mb-0.5 block text-[10px] font-medium uppercase text-zinc-500 dark:text-zinc-400">
+                {t("status")}
+              </span>
+              <StatusDropdown
+                value={
+                  INTERVIEW_STATUSES.some((s) => s.value === slot.status)
+                    ? slot.status
+                    : DEFAULT_SLOT_STATUS
+                }
+                onChange={(v) => onSlotChange(idx, { status: v })}
+                size="sm"
+                compact={compact}
+              />
+            </div>
+            <div>
+              <span className="mb-0.5 block text-[10px] font-medium uppercase text-zinc-500 dark:text-zinc-400">
+                {t("outcome")}
+              </span>
+              <div className="relative">
+                <span className="pointer-events-none absolute left-1.5 top-1/2 z-10 -translate-y-1/2">
+                  <GradeDot grade={slot.outcome} size="sm" />
+                </span>
+                <select
+                  value={slot.outcome}
+                  onChange={(e) =>
+                    onSlotChange(idx, { outcome: normalizeGrade(e.target.value) })
+                  }
+                  className={gradeSelectCl(slot.outcome)}
+                  aria-label={`${t("outcome")} ${idx + 1}`}
+                >
+                  <option value="">—</option>
+                  {GRADE_OPTIONS.filter((g) => g).map((g) => (
+                    <option key={g} value={g}>
+                      {g}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="min-w-0 flex-1">
+              <span className="mb-0.5 block text-[10px] font-medium uppercase text-zinc-500 dark:text-zinc-400">
+                {t("notes")}
+              </span>
+              <textarea
+                value={slot.notes}
+                onChange={(e) => onSlotChange(idx, { notes: e.target.value })}
+                rows={compact ? 2 : 2}
+                className={notesCl}
+                placeholder={t("notes")}
+                aria-label={`${t("notes")} ${idx + 1}`}
+              />
+            </div>
+          </div>
         </div>
       ))}
     </div>
@@ -301,9 +416,6 @@ export default function InterviewMonthClient({
   const [showForm, setShowForm] = useState(false);
   const [date, setDate] = useState("");
   const [formSlots, setFormSlots] = useState<InterviewSlot[]>(() => emptySlots());
-  const [formNotes, setFormNotes] = useState("");
-  const [status, setStatus] = useState(INTERVIEW_STATUSES[1].value);
-  const [outcome, setOutcome] = useState("");
   const [nameSort, setNameSort] = useState<NameSortMode>("firstName");
 
   const apiKey = API_KEY_PREFIX + month;
@@ -361,20 +473,17 @@ export default function InterviewMonthClient({
           time: s.time.trim(),
           firstName: s.firstName.trim(),
           lastName: s.lastName.trim(),
+          status: coerceSlotStatus(s.status),
+          outcome: normalizeGrade(s.outcome),
+          notes: s.notes.trim(),
         })),
-        notes: formNotes.trim(),
-        status: status.trim(),
-        outcome: normalizeEnrollmentStatus(outcome),
       },
     ];
     persist(next);
     setDate("");
     setFormSlots(emptySlots());
-    setFormNotes("");
-    setStatus(INTERVIEW_STATUSES[1].value);
-    setOutcome("");
     setShowForm(false);
-  }, [interviews, date, formSlots, formNotes, status, outcome, persist]);
+  }, [interviews, date, formSlots, persist]);
 
   const removeInterview = useCallback(
     (id: string) => {
@@ -383,36 +492,9 @@ export default function InterviewMonthClient({
     [interviews, persist]
   );
 
-  const updateStatus = useCallback(
-    (id: string, newStatus: string) => {
-      const next = interviews.map((i) =>
-        i.id === id ? { ...i, status: newStatus } : i
-      );
-      persist(next);
-    },
-    [interviews, persist]
-  );
-
-  const updateOutcome = useCallback(
-    (id: string, newOutcome: string) => {
-      const next = interviews.map((i) =>
-        i.id === id ? { ...i, outcome: normalizeEnrollmentStatus(newOutcome) } : i
-      );
-      persist(next);
-    },
-    [interviews, persist]
-  );
-
   const updateDate = useCallback(
     (id: string, newDate: string) => {
       persist(interviews.map((i) => (i.id === id ? { ...i, date: newDate } : i)));
-    },
-    [interviews, persist]
-  );
-
-  const updateNotes = useCallback(
-    (id: string, newNotes: string) => {
-      persist(interviews.map((i) => (i.id === id ? { ...i, notes: newNotes } : i)));
     },
     [interviews, persist]
   );
@@ -466,47 +548,10 @@ export default function InterviewMonthClient({
               className="mt-1 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
             />
           </div>
-          <div className="min-w-0 max-w-3xl">
+          <div className="min-w-0 max-w-5xl">
             <SlotRows slots={formSlots} onSlotChange={formSlotChange} />
           </div>
-          <div>
-            <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">{t("notes")}</label>
-            <textarea
-              value={formNotes}
-              onChange={(e) => setFormNotes(e.target.value)}
-              rows={3}
-              className="mt-1 w-full max-w-2xl rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
-              placeholder={t("notes")}
-            />
-          </div>
           <div className="flex flex-wrap items-end gap-3">
-            <div>
-              <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">{t("status")}</label>
-              <div className="mt-1">
-                <StatusDropdown value={status} onChange={setStatus} size="md" />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">{t("outcome")}</label>
-              <div className="relative mt-1 min-w-[10rem]">
-                <span className="pointer-events-none absolute left-2 top-1/2 z-10 -translate-y-1/2">
-                  <EnrollmentStatusDot status={outcome} size="md" />
-                </span>
-                <select
-                  value={outcome}
-                  onChange={(e) => setOutcome(e.target.value)}
-                  className={`w-full rounded-md border border-zinc-300 bg-white py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${ENROLLMENT_STATUS_DOT_COLORS[outcome.trim()] ? "pl-9 pr-3" : "px-3"}`}
-                  aria-label={t("outcome")}
-                >
-                  <option value="">{t("outcome")}</option>
-                  {STATUS_OPTIONS.filter((s) => s).map((s) => (
-                    <option key={s} value={s}>
-                      {t(s)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
             <button
               type="button"
               onClick={addInterview}
@@ -534,17 +579,8 @@ export default function InterviewMonthClient({
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                 {t("day")}
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 min-w-[16rem]">
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 min-w-[20rem]">
                 {t("interviewSlots")}
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                {t("status")}
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                {t("outcome")}
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 min-w-[10rem]">
-                {t("notes")}
               </th>
               <th className="px-4 py-3 w-8" />
             </tr>
@@ -552,7 +588,7 @@ export default function InterviewMonthClient({
           <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
             {interviews.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-sm text-zinc-500 dark:text-zinc-400">
+                <td colSpan={4} className="px-6 py-12 text-center text-sm text-zinc-500 dark:text-zinc-400">
                   {t("noInterviewsThisMonth")}
                 </td>
               </tr>
@@ -576,43 +612,6 @@ export default function InterviewMonthClient({
                       slots={i.slots}
                       onSlotChange={(idx, patch) => updateSlot(i.id, idx, patch)}
                       compact
-                    />
-                  </td>
-                  <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 align-top">
-                    <StatusDropdown
-                      value={INTERVIEW_STATUSES.some((s) => s.value === i.status) ? i.status : INTERVIEW_STATUSES[1].value}
-                      onChange={(v) => updateStatus(i.id, v)}
-                      size="sm"
-                    />
-                  </td>
-                  <td className="px-4 py-2 align-top">
-                    <div className="relative min-w-[10rem]">
-                      <span className="pointer-events-none absolute left-2 top-1/2 z-10 -translate-y-1/2">
-                        <EnrollmentStatusDot status={i.outcome} size="sm" />
-                      </span>
-                      <select
-                        value={i.outcome}
-                        onChange={(e) => updateOutcome(i.id, e.target.value)}
-                        className={`w-full min-w-[8rem] rounded-md border border-zinc-300 bg-white py-1.5 text-sm text-zinc-700 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 ${ENROLLMENT_STATUS_DOT_COLORS[i.outcome.trim()] ? "pl-8 pr-2" : "px-2"}`}
-                        aria-label={t("outcome")}
-                      >
-                        <option value="">—</option>
-                        {STATUS_OPTIONS.filter((s) => s).map((s) => (
-                          <option key={s} value={s}>
-                            {t(s)}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </td>
-                  <td className="px-4 py-2 align-top">
-                    <textarea
-                      value={i.notes}
-                      onChange={(e) => updateNotes(i.id, e.target.value)}
-                      rows={4}
-                      className="w-full min-w-[8rem] max-w-md rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
-                      placeholder={t("notes")}
-                      aria-label={t("notes")}
                     />
                   </td>
                   <td className="px-4 py-3 align-top">
