@@ -1,13 +1,79 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { Locale } from "@/lib/translations";
 import NameSortToggle from "@/components/NameSortToggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { compareByNameSort, type NameSortMode } from "@/lib/nameSort";
+import { EnrollmentStatusDot } from "@/components/EnrollmentStatusDot";
+import {
+  ENROLLMENT_STATUS_DOT_COLORS,
+  normalizeEnrollmentStatus,
+  STATUS_OPTIONS,
+} from "@/lib/enrollmentStatusShared";
 
 const STORAGE_PREFIX = "enroll-interviews-";
 const API_KEY_PREFIX = "interviews-";
+const SLOT_COUNT = 4;
+
+type InterviewSlot = {
+  time: string;
+  firstName: string;
+  lastName: string;
+};
+
+function emptySlots(): InterviewSlot[] {
+  return Array.from({ length: SLOT_COUNT }, () => ({
+    time: "",
+    firstName: "",
+    lastName: "",
+  }));
+}
+
+/** Da stringa unica (dati vecchi) a nome + cognome (ultima parola = cognome). */
+function splitLegacyFullName(raw: string): { firstName: string; lastName: string } {
+  const t = raw.trim();
+  if (!t) return { firstName: "", lastName: "" };
+  const i = t.lastIndexOf(" ");
+  if (i <= 0) return { firstName: t, lastName: "" };
+  return { firstName: t.slice(0, i).trim(), lastName: t.slice(i + 1).trim() };
+}
+
+function normalizeSlots(raw: unknown): InterviewSlot[] {
+  const base = emptySlots();
+  if (!Array.isArray(raw)) return base;
+  for (let i = 0; i < SLOT_COUNT; i++) {
+    const s = raw[i] as Record<string, unknown> | undefined;
+    if (!s) continue;
+    let firstName = String(s.firstName ?? "").trim();
+    let lastName = String(s.lastName ?? "").trim();
+    const nameSingle = String(s.name ?? "").trim();
+    if (nameSingle && !firstName && !lastName) {
+      const sp = splitLegacyFullName(nameSingle);
+      firstName = sp.firstName;
+      lastName = sp.lastName;
+    }
+    base[i] = {
+      time: String(s.time ?? ""),
+      firstName,
+      lastName,
+    };
+  }
+  return base;
+}
+
+/** Stringa per ordinamento nome. */
+function sortDisplayNameFromSlots(slots: InterviewSlot[], locale: Locale): string {
+  for (const s of slots) {
+    const fn = s.firstName.trim();
+    const ln = s.lastName.trim();
+    if (!fn && !ln) continue;
+    if (locale === "it") return `${ln} ${fn}`.trim();
+    return `${fn} ${ln}`.trim();
+  }
+  return "";
+}
 
 const INTERVIEW_STATUSES = [
   { value: "confirmed", labelKey: "confirmed" as const, color: "green" as const },
@@ -105,9 +171,11 @@ function StatusDropdown({
 
 type Interview = {
   id: string;
-  applicant: string;
-  dateTime: string;
+  date: string;
+  slots: InterviewSlot[];
+  notes: string;
   status: string;
+  outcome: string;
 };
 
 function uid() {
@@ -119,8 +187,8 @@ function loadInterviews(month: string): Interview[] {
   try {
     const raw = localStorage.getItem(STORAGE_PREFIX + month);
     if (!raw) return [];
-    const parsed = JSON.parse(raw) as Interview[];
-    return Array.isArray(parsed) ? parsed : [];
+    const parsed = JSON.parse(raw) as unknown;
+    return normalizeInterviews(parsed);
   } catch {
     return [];
   }
@@ -133,12 +201,91 @@ function saveInterviews(month: string, list: Interview[]) {
 
 function normalizeInterviews(raw: unknown): Interview[] {
   if (!Array.isArray(raw)) return [];
-  return (raw as Record<string, unknown>[]).map((i) => ({
-    id: String(i?.id ?? uid()),
-    applicant: String(i?.applicant ?? ""),
-    dateTime: String(i?.dateTime ?? ""),
-    status: String(i?.status ?? INTERVIEW_STATUSES[1].value),
-  }));
+  return (raw as Record<string, unknown>[]).map((i) => {
+    const id = String(i?.id ?? uid());
+    const status = String(i?.status ?? INTERVIEW_STATUSES[1].value);
+    const outcome = normalizeEnrollmentStatus(String(i?.outcome ?? ""));
+    const notes = String(i?.notes ?? "");
+    const date = String(i?.date ?? "");
+
+    if (Array.isArray(i?.slots)) {
+      return {
+        id,
+        date,
+        slots: normalizeSlots(i.slots),
+        notes,
+        status,
+        outcome,
+      };
+    }
+
+    const applicant = String(i?.applicant ?? "");
+    const dateTime = String(i?.dateTime ?? "");
+    const legacySlots = emptySlots();
+    if (applicant.trim() || dateTime.trim()) {
+      const sp = splitLegacyFullName(applicant);
+      legacySlots[0] = {
+        time: dateTime,
+        firstName: sp.firstName,
+        lastName: sp.lastName,
+      };
+    }
+    return {
+      id,
+      date,
+      slots: legacySlots,
+      notes,
+      status,
+      outcome,
+    };
+  });
+}
+
+function SlotRows({
+  slots,
+  onSlotChange,
+  compact,
+}: {
+  slots: InterviewSlot[];
+  onSlotChange: (index: number, patch: Partial<InterviewSlot>) => void;
+  compact?: boolean;
+}) {
+  const { t } = useLanguage();
+  const inputCl = compact
+    ? "rounded border border-zinc-300 bg-white px-1.5 py-1 text-xs dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
+    : "rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50";
+  return (
+    <div className="space-y-2">
+      {slots.map((slot, idx) => (
+        <div key={idx} className="flex min-w-[14rem] flex-nowrap items-center gap-2">
+          <input
+            type="text"
+            value={slot.time}
+            onChange={(e) => onSlotChange(idx, { time: e.target.value })}
+            placeholder={t("time")}
+            className={`${inputCl} w-[5rem] shrink-0 sm:w-[5.5rem]`}
+            aria-label={`${t("time")} ${idx + 1}`}
+          />
+          <input
+            type="text"
+            value={slot.firstName}
+            onChange={(e) => onSlotChange(idx, { firstName: e.target.value })}
+            placeholder={t("firstName")}
+            className={`${inputCl} min-w-0 flex-1`}
+            aria-label={`${t("firstName")} ${idx + 1}`}
+          />
+          <input
+            type="text"
+            value={slot.lastName}
+            onChange={(e) => onSlotChange(idx, { lastName: e.target.value })}
+            placeholder={t("lastName")}
+            className={`${inputCl} min-w-0 flex-1`}
+            aria-label={`${t("lastName")} ${idx + 1}`}
+          />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export default function InterviewMonthClient({
@@ -152,9 +299,11 @@ export default function InterviewMonthClient({
   const { t, locale } = useLanguage();
   const [interviews, setInterviews] = useState<Interview[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [applicant, setApplicant] = useState("");
-  const [dateTime, setDateTime] = useState("");
+  const [date, setDate] = useState("");
+  const [formSlots, setFormSlots] = useState<InterviewSlot[]>(() => emptySlots());
+  const [formNotes, setFormNotes] = useState("");
   const [status, setStatus] = useState(INTERVIEW_STATUSES[1].value);
+  const [outcome, setOutcome] = useState("");
   const [nameSort, setNameSort] = useState<NameSortMode>("firstName");
 
   const apiKey = API_KEY_PREFIX + month;
@@ -162,7 +311,12 @@ export default function InterviewMonthClient({
   const sortedInterviews = useMemo(
     () =>
       [...interviews].sort((a, b) =>
-        compareByNameSort(a.applicant, b.applicant, nameSort, locale)
+        compareByNameSort(
+          sortDisplayNameFromSlots(a.slots, locale),
+          sortDisplayNameFromSlots(b.slots, locale),
+          nameSort,
+          locale
+        )
       ),
     [interviews, nameSort, locale]
   );
@@ -197,22 +351,30 @@ export default function InterviewMonthClient({
   );
 
   const addInterview = useCallback(() => {
-    if (!applicant.trim()) return;
+    if (!date.trim()) return;
     const next = [
       ...interviews,
       {
         id: uid(),
-        applicant: applicant.trim(),
-        dateTime: dateTime.trim(),
+        date: date.trim(),
+        slots: formSlots.map((s) => ({
+          time: s.time.trim(),
+          firstName: s.firstName.trim(),
+          lastName: s.lastName.trim(),
+        })),
+        notes: formNotes.trim(),
         status: status.trim(),
+        outcome: normalizeEnrollmentStatus(outcome),
       },
     ];
     persist(next);
-    setApplicant("");
-    setDateTime("");
+    setDate("");
+    setFormSlots(emptySlots());
+    setFormNotes("");
     setStatus(INTERVIEW_STATUSES[1].value);
+    setOutcome("");
     setShowForm(false);
-  }, [interviews, applicant, dateTime, status, persist]);
+  }, [interviews, date, formSlots, formNotes, status, outcome, persist]);
 
   const removeInterview = useCallback(
     (id: string) => {
@@ -231,15 +393,45 @@ export default function InterviewMonthClient({
     [interviews, persist]
   );
 
-  const updateInterview = useCallback(
-    (id: string, patch: Partial<Pick<Interview, "applicant" | "dateTime">>) => {
+  const updateOutcome = useCallback(
+    (id: string, newOutcome: string) => {
       const next = interviews.map((i) =>
-        i.id === id ? { ...i, ...patch } : i
+        i.id === id ? { ...i, outcome: normalizeEnrollmentStatus(newOutcome) } : i
       );
       persist(next);
     },
     [interviews, persist]
   );
+
+  const updateDate = useCallback(
+    (id: string, newDate: string) => {
+      persist(interviews.map((i) => (i.id === id ? { ...i, date: newDate } : i)));
+    },
+    [interviews, persist]
+  );
+
+  const updateNotes = useCallback(
+    (id: string, newNotes: string) => {
+      persist(interviews.map((i) => (i.id === id ? { ...i, notes: newNotes } : i)));
+    },
+    [interviews, persist]
+  );
+
+  const updateSlot = useCallback(
+    (id: string, slotIndex: number, patch: Partial<InterviewSlot>) => {
+      const next = interviews.map((i) => {
+        if (i.id !== id) return i;
+        const slots = i.slots.map((s, j) => (j === slotIndex ? { ...s, ...patch } : s));
+        return { ...i, slots };
+      });
+      persist(next);
+    },
+    [interviews, persist]
+  );
+
+  const formSlotChange = useCallback((index: number, patch: Partial<InterviewSlot>) => {
+    setFormSlots((prev) => prev.map((s, j) => (j === index ? { ...s, ...patch } : s)));
+  }, []);
 
   return (
     <>
@@ -249,7 +441,7 @@ export default function InterviewMonthClient({
             {label}
           </h2>
           <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-            Schedule and manage interviews for {label}.
+            {t("manageInterviewsFor")} {label}.
           </p>
         </div>
         <button
@@ -263,42 +455,66 @@ export default function InterviewMonthClient({
       </div>
 
       {showForm && (
-        <div className="mt-6 flex flex-wrap items-end gap-3 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="mt-6 space-y-4 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">{t("interviewSlotsHint")}</p>
           <div>
-            <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">{t("applicant")}</label>
+            <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">{t("day")}</label>
             <input
-              type="text"
-              value={applicant}
-              onChange={(e) => setApplicant(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && addInterview()}
-              placeholder="Name"
-              className="mt-1 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 min-w-[160px]"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="mt-1 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
             />
           </div>
-          <div>
-            <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">{t("dateTime")}</label>
-            <input
-              type="text"
-              value={dateTime}
-              onChange={(e) => setDateTime(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && addInterview()}
-              placeholder="e.g. 15 Jan, 10:00"
-              className="mt-1 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 min-w-[140px]"
-            />
+          <div className="min-w-0 max-w-3xl">
+            <SlotRows slots={formSlots} onSlotChange={formSlotChange} />
           </div>
           <div>
-            <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">{t("status")}</label>
-            <div className="mt-1">
-              <StatusDropdown value={status} onChange={setStatus} size="md" />
+            <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">{t("notes")}</label>
+            <textarea
+              value={formNotes}
+              onChange={(e) => setFormNotes(e.target.value)}
+              rows={3}
+              className="mt-1 w-full max-w-2xl rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
+              placeholder={t("notes")}
+            />
+          </div>
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">{t("status")}</label>
+              <div className="mt-1">
+                <StatusDropdown value={status} onChange={setStatus} size="md" />
+              </div>
             </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">{t("outcome")}</label>
+              <div className="relative mt-1 min-w-[10rem]">
+                <span className="pointer-events-none absolute left-2 top-1/2 z-10 -translate-y-1/2">
+                  <EnrollmentStatusDot status={outcome} size="md" />
+                </span>
+                <select
+                  value={outcome}
+                  onChange={(e) => setOutcome(e.target.value)}
+                  className={`w-full rounded-md border border-zinc-300 bg-white py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${ENROLLMENT_STATUS_DOT_COLORS[outcome.trim()] ? "pl-9 pr-3" : "px-3"}`}
+                  aria-label={t("outcome")}
+                >
+                  <option value="">{t("outcome")}</option>
+                  {STATUS_OPTIONS.filter((s) => s).map((s) => (
+                    <option key={s} value={s}>
+                      {t(s)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={addInterview}
+              className="rounded-md bg-zinc-800 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-200 dark:text-zinc-900 dark:hover:bg-zinc-300"
+            >
+              {t("addInterview")}
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={addInterview}
-            className="rounded-md bg-zinc-800 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-200 dark:text-zinc-900 dark:hover:bg-zinc-300"
-          >
-            {t("addInterview")}
-          </button>
         </div>
       )}
 
@@ -308,29 +524,35 @@ export default function InterviewMonthClient({
         className="mt-6 justify-end sm:justify-start"
       />
 
-      <div className="mt-3 overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="mt-3 overflow-x-auto rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
         <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
           <thead>
             <tr>
               <th className="px-3 py-3 text-center text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 w-12">
                 {t("rowIndex")}
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                {t("applicant")}
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                {t("day")}
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                {t("dateTime")}
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 min-w-[16rem]">
+                {t("interviewSlots")}
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                 {t("status")}
               </th>
-              <th className="px-6 py-3 w-8" />
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                {t("outcome")}
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 min-w-[10rem]">
+                {t("notes")}
+              </th>
+              <th className="px-4 py-3 w-8" />
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
             {interviews.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-sm text-zinc-500 dark:text-zinc-400">
+                <td colSpan={7} className="px-6 py-12 text-center text-sm text-zinc-500 dark:text-zinc-400">
                   {t("noInterviewsThisMonth")}
                 </td>
               </tr>
@@ -340,38 +562,60 @@ export default function InterviewMonthClient({
                   <td className="px-3 py-2 text-center text-sm font-medium tabular-nums text-zinc-500 dark:text-zinc-400 align-middle">
                     {idx + 1}
                   </td>
-                  <td className="px-6 py-2 align-middle">
+                  <td className="px-4 py-2 align-top">
                     <input
-                      type="text"
-                      value={i.applicant}
-                      onChange={(e) =>
-                        updateInterview(i.id, { applicant: e.target.value })
-                      }
-                      className="w-full min-w-[8rem] rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
-                      placeholder={t("applicant")}
-                      aria-label={t("applicant")}
+                      type="date"
+                      value={i.date}
+                      onChange={(e) => updateDate(i.id, e.target.value)}
+                      className="w-full min-w-[10rem] rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
+                      aria-label={t("day")}
                     />
                   </td>
-                  <td className="px-6 py-2 align-middle">
-                    <input
-                      type="text"
-                      value={i.dateTime}
-                      onChange={(e) =>
-                        updateInterview(i.id, { dateTime: e.target.value })
-                      }
-                      className="w-full min-w-[8rem] rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-700 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
-                      placeholder={t("dateTime")}
-                      aria-label={t("dateTime")}
+                  <td className="px-4 py-2 align-top">
+                    <SlotRows
+                      slots={i.slots}
+                      onSlotChange={(idx, patch) => updateSlot(i.id, idx, patch)}
+                      compact
                     />
                   </td>
-                  <td className="px-6 py-3 text-sm text-zinc-700 dark:text-zinc-300">
+                  <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 align-top">
                     <StatusDropdown
                       value={INTERVIEW_STATUSES.some((s) => s.value === i.status) ? i.status : INTERVIEW_STATUSES[1].value}
                       onChange={(v) => updateStatus(i.id, v)}
                       size="sm"
                     />
                   </td>
-                  <td className="px-6 py-3">
+                  <td className="px-4 py-2 align-top">
+                    <div className="relative min-w-[10rem]">
+                      <span className="pointer-events-none absolute left-2 top-1/2 z-10 -translate-y-1/2">
+                        <EnrollmentStatusDot status={i.outcome} size="sm" />
+                      </span>
+                      <select
+                        value={i.outcome}
+                        onChange={(e) => updateOutcome(i.id, e.target.value)}
+                        className={`w-full min-w-[8rem] rounded-md border border-zinc-300 bg-white py-1.5 text-sm text-zinc-700 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 ${ENROLLMENT_STATUS_DOT_COLORS[i.outcome.trim()] ? "pl-8 pr-2" : "px-2"}`}
+                        aria-label={t("outcome")}
+                      >
+                        <option value="">—</option>
+                        {STATUS_OPTIONS.filter((s) => s).map((s) => (
+                          <option key={s} value={s}>
+                            {t(s)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </td>
+                  <td className="px-4 py-2 align-top">
+                    <textarea
+                      value={i.notes}
+                      onChange={(e) => updateNotes(i.id, e.target.value)}
+                      rows={4}
+                      className="w-full min-w-[8rem] max-w-md rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
+                      placeholder={t("notes")}
+                      aria-label={t("notes")}
+                    />
+                  </td>
+                  <td className="px-4 py-3 align-top">
                     <button
                       type="button"
                       onClick={() => removeInterview(i.id)}

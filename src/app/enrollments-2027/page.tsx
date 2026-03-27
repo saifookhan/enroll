@@ -12,6 +12,12 @@ import {
   provinceFieldValue,
 } from "@/lib/italianProvinceSigle";
 import { compareByNameSort, type NameSortMode } from "@/lib/nameSort";
+import { EnrollmentStatusDot } from "@/components/EnrollmentStatusDot";
+import {
+  ENROLLMENT_STATUS_DOT_COLORS,
+  normalizeEnrollmentStatus,
+  STATUS_OPTIONS,
+} from "@/lib/enrollmentStatusShared";
 
 const STORAGE_KEY = "enroll-classes";
 const VIEW_KEY = "enroll-view";
@@ -38,55 +44,6 @@ function GradeDot({ grade, size = "md" }: { grade: string; size?: "sm" | "md" })
     <span
       className={`inline-block shrink-0 rounded-full ${sizeClass} ${bg}`}
       title={g}
-      aria-hidden
-    />
-  );
-}
-
-/** Valori salvati; etichette in translations (enrollmentFull, …). */
-const ENROLLMENT_STATUS_VALUES = [
-  "enrollmentFull",
-  "enrollmentInProgress",
-  "enrollmentReserved",
-  "enrollmentRegulation",
-  "enrollmentPayment",
-] as const;
-
-const STATUS_OPTIONS = ["", ...ENROLLMENT_STATUS_VALUES] as const;
-
-const LEGACY_ENROLLMENT_STATUS: Record<string, string> = {
-  Enrolled: "enrollmentFull",
-  Pending: "enrollmentReserved",
-  Withdrawn: "enrollmentPayment",
-  Completed: "enrollmentFull",
-};
-
-function normalizeEnrollmentStatus(raw: string): string {
-  const s = raw.trim();
-  if (!s) return "";
-  if (LEGACY_ENROLLMENT_STATUS[s]) return LEGACY_ENROLLMENT_STATUS[s];
-  if ((ENROLLMENT_STATUS_VALUES as readonly string[]).includes(s)) return s;
-  return "";
-}
-
-const STATUS_DOT_COLORS: Record<string, string> = {
-  enrollmentFull: "bg-emerald-500",
-  enrollmentInProgress: "bg-violet-500",
-  enrollmentReserved: "bg-sky-500",
-  enrollmentRegulation: "bg-orange-500",
-  enrollmentPayment: "bg-red-500",
-};
-
-function StatusDotEnroll({ status, size = "md" }: { status: string; size?: "sm" | "md" }) {
-  const { t } = useLanguage();
-  const s = status.trim();
-  const bg = STATUS_DOT_COLORS[s];
-  const sizeClass = size === "sm" ? "h-2.5 w-2.5" : "h-3.5 w-3.5";
-  if (!bg) return null;
-  return (
-    <span
-      className={`inline-block shrink-0 rounded-full ${sizeClass} ${bg}`}
-      title={s ? t(s) : ""}
       aria-hidden
     />
   );
@@ -608,12 +565,12 @@ function EditableStudentRow({
       <td className={`${cellPad}${squeezeColumns ? " min-w-0" : ""}`}>
         <div className={statusWrapCl}>
           <span className="pointer-events-none absolute left-2 top-1/2 z-10 -translate-y-1/2">
-            <StatusDotEnroll status={s.status} size={compact ? "sm" : "md"} />
+            <EnrollmentStatusDot status={s.status} size={compact ? "sm" : "md"} />
           </span>
           <select
             value={s.status}
             onChange={(e) => onUpdateStudent(classId, s.id, { status: e.target.value })}
-            className={`${selectCl} w-full${statusSelectMin} max-w-full ${STATUS_DOT_COLORS[s.status.trim()] ? "pl-8" : "pl-2"}`}
+            className={`${selectCl} w-full${statusSelectMin} max-w-full ${ENROLLMENT_STATUS_DOT_COLORS[s.status.trim()] ? "pl-8" : "pl-2"}`}
             aria-label={t("status")}
           >
             <option value="">—</option>
@@ -830,13 +787,13 @@ function ClassBlockCompact({
             </select>
             <div className="relative min-w-[100px]">
               <span className="pointer-events-none absolute left-2 top-1/2 z-10 -translate-y-1/2">
-                <StatusDotEnroll status={status} size="sm" />
+                <EnrollmentStatusDot status={status} size="sm" />
               </span>
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-                className={`w-full rounded border border-zinc-300 bg-white py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${STATUS_DOT_COLORS[status.trim()] ? "pl-8 pr-2" : "px-2"}`}
+                className={`w-full rounded border border-zinc-300 bg-white py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${ENROLLMENT_STATUS_DOT_COLORS[status.trim()] ? "pl-8 pr-2" : "px-2"}`}
               >
                 <option value="">{t("status")}</option>
                 {STATUS_OPTIONS.filter((s) => s).map((s) => (
@@ -1123,7 +1080,7 @@ function ClassBlock({
           </select>
           <div className={dense ? "relative min-w-0 flex-1 basis-[8rem] sm:min-w-[92px] sm:flex-none" : "relative min-w-[110px]"}>
             <span className="pointer-events-none absolute left-2 top-1/2 z-10 -translate-y-1/2">
-              <StatusDotEnroll status={status} size={dense ? "sm" : "md"} />
+              <EnrollmentStatusDot status={status} size={dense ? "sm" : "md"} />
             </span>
             <select
               value={status}
@@ -1131,8 +1088,8 @@ function ClassBlock({
               onKeyDown={(e) => e.key === "Enter" && handleAdd()}
               className={
                 dense
-                  ? `w-full min-w-0 max-w-full rounded border border-zinc-300 bg-white py-1.5 text-xs dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${STATUS_DOT_COLORS[status.trim()] ? "pl-8 pr-2" : "px-2"}`
-                  : `w-full rounded-md border border-zinc-300 bg-white py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${STATUS_DOT_COLORS[status.trim()] ? "pl-9 pr-3" : "px-3"}`
+                  ? `w-full min-w-0 max-w-full rounded border border-zinc-300 bg-white py-1.5 text-xs dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${ENROLLMENT_STATUS_DOT_COLORS[status.trim()] ? "pl-8 pr-2" : "px-2"}`
+                  : `w-full rounded-md border border-zinc-300 bg-white py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 ${ENROLLMENT_STATUS_DOT_COLORS[status.trim()] ? "pl-9 pr-3" : "px-3"}`
               }
             >
               <option value="">{t("status")}</option>
