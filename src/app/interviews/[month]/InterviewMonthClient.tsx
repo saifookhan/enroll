@@ -1,11 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Locale } from "@/lib/translations";
-import NameSortToggle from "@/components/NameSortToggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { compareByNameSort, type NameSortMode } from "@/lib/nameSort";
 import { GradeDot } from "@/components/GradeDot";
 import { GRADE_DOT_COLORS, GRADE_OPTIONS, normalizeGrade } from "@/lib/gradeShared";
 
@@ -102,16 +99,16 @@ function normalizeSlots(
   return base;
 }
 
-/** Stringa per ordinamento nome. */
-function sortDisplayNameFromSlots(slots: InterviewSlot[], locale: Locale): string {
-  for (const s of slots) {
-    const fn = s.firstName.trim();
-    const ln = s.lastName.trim();
-    if (!fn && !ln) continue;
-    if (locale === "it") return `${ln} ${fn}`.trim();
-    return `${fn} ${ln}`.trim();
-  }
-  return "";
+/** Chronological by `date` (yyyy-mm-dd); rows without a date last. */
+function compareInterviewByDate(a: Interview, b: Interview): number {
+  const da = a.date.trim();
+  const db = b.date.trim();
+  const emptyA = !da;
+  const emptyB = !db;
+  if (emptyA && emptyB) return 0;
+  if (emptyA) return 1;
+  if (emptyB) return -1;
+  return da.localeCompare(db);
 }
 
 const INTERVIEW_STATUSES = [
@@ -325,7 +322,7 @@ function SlotRows({
               onChange={(e) => onSlotChange(idx, { time: e.target.value })}
               placeholder={t("time")}
               className={`${inputCl} w-[4.75rem] shrink-0 sm:w-[5.25rem]`}
-              aria-label={`${t("time")} ${idx + 1}`}
+              aria-label={t("time")}
             />
             <input
               type="text"
@@ -333,7 +330,7 @@ function SlotRows({
               onChange={(e) => onSlotChange(idx, { firstName: e.target.value })}
               placeholder={t("firstName")}
               className={`${inputCl} min-w-[4rem] flex-1`}
-              aria-label={`${t("firstName")} ${idx + 1}`}
+              aria-label={t("firstName")}
             />
             <input
               type="text"
@@ -341,7 +338,7 @@ function SlotRows({
               onChange={(e) => onSlotChange(idx, { lastName: e.target.value })}
               placeholder={t("lastName")}
               className={`${inputCl} min-w-[4rem] flex-1`}
-              aria-label={`${t("lastName")} ${idx + 1}`}
+              aria-label={t("lastName")}
             />
           </div>
           <div
@@ -380,7 +377,7 @@ function SlotRows({
                     onSlotChange(idx, { outcome: normalizeGrade(e.target.value) })
                   }
                   className={gradeSelectBase(slot.outcome)}
-                  aria-label={`${t("outcome")} ${idx + 1}`}
+                  aria-label={t("outcome")}
                 >
                   <option value="">—</option>
                   {GRADE_OPTIONS.filter((g) => g).map((g) => (
@@ -399,7 +396,7 @@ function SlotRows({
                 rows={1}
                 className={notesCl}
                 placeholder={t("notes")}
-                aria-label={`${t("notes")} ${idx + 1}`}
+                aria-label={t("notes")}
               />
             </div>
           </div>
@@ -417,26 +414,17 @@ export default function InterviewMonthClient({
   label: string;
 }) {
   const { user } = useAuth();
-  const { t, locale } = useLanguage();
+  const { t } = useLanguage();
   const [interviews, setInterviews] = useState<Interview[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [date, setDate] = useState("");
   const [formSlots, setFormSlots] = useState<InterviewSlot[]>(() => emptySlots());
-  const [nameSort, setNameSort] = useState<NameSortMode>("firstName");
 
   const apiKey = API_KEY_PREFIX + month;
 
   const sortedInterviews = useMemo(
-    () =>
-      [...interviews].sort((a, b) =>
-        compareByNameSort(
-          sortDisplayNameFromSlots(a.slots, locale),
-          sortDisplayNameFromSlots(b.slots, locale),
-          nameSort,
-          locale
-        )
-      ),
-    [interviews, nameSort, locale]
+    () => [...interviews].sort(compareInterviewByDate),
+    [interviews]
   );
 
   useEffect(() => {
@@ -569,19 +557,10 @@ export default function InterviewMonthClient({
         </div>
       )}
 
-      <NameSortToggle
-        value={nameSort}
-        onChange={setNameSort}
-        className="mt-6 justify-end sm:justify-start"
-      />
-
-      <div className="mt-3 overflow-x-auto rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="mt-6 overflow-x-auto rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
         <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
           <thead>
             <tr>
-              <th className="px-3 py-3 text-center text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 w-12">
-                {t("rowIndex")}
-              </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                 {t("day")}
               </th>
@@ -594,16 +573,13 @@ export default function InterviewMonthClient({
           <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
             {interviews.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-6 py-12 text-center text-sm text-zinc-500 dark:text-zinc-400">
+                <td colSpan={3} className="px-6 py-12 text-center text-sm text-zinc-500 dark:text-zinc-400">
                   {t("noInterviewsThisMonth")}
                 </td>
               </tr>
             ) : (
-              sortedInterviews.map((i, idx) => (
+              sortedInterviews.map((i) => (
                 <tr key={i.id}>
-                  <td className="px-3 py-2 text-center text-sm font-medium tabular-nums text-zinc-500 dark:text-zinc-400 align-middle">
-                    {idx + 1}
-                  </td>
                   <td className="px-4 py-2 align-top">
                     <input
                       type="date"
