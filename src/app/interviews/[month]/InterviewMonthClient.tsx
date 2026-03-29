@@ -481,9 +481,10 @@ export default function InterviewMonthClient({
 
   const removeInterview = useCallback(
     (id: string) => {
+      if (typeof window !== "undefined" && !window.confirm(t("confirmRemoveInterviewDay"))) return;
       persist(interviews.filter((i) => i.id !== id));
     },
-    [interviews, persist]
+    [interviews, persist, t]
   );
 
   const updateDate = useCallback(
